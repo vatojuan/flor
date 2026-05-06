@@ -6,8 +6,9 @@ from jose import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from pydantic import BaseModel
-import psycopg2
 from dotenv import load_dotenv
+from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 import os
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
@@ -21,10 +22,6 @@ router = APIRouter(
 )
 
 # ───────────────────────── Configuración JWT y hashing ─────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY environment variable is required")
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -50,23 +47,6 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     return encoded_jwt
 
 
-# ─────────────────────────── Conexión a la base de datos ──────────────────────────
-def get_db_connection():
-    """
-    Retorna una conexión psycopg2 a la base, usando variables de entorno.
-    """
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER", "postgres"),
-            password=os.getenv("PASSWORD", "postgres"),
-            host=os.getenv("HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            sslmode="require",
-        )
-        return conn
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en la conexión a BD: {e}")
 
 
 # ───────────────────────────── Modelo para login-google ───────────────────────────

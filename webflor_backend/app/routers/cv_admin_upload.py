@@ -13,6 +13,7 @@ from PyPDF2 import PdfReader
 from openai import OpenAI
 from app.email_utils import send_credentials_email
 from pgvector.psycopg2 import register_vector
+from app.database import get_db_connection
 import bcrypt
 
 load_dotenv()
@@ -23,21 +24,6 @@ storage_client = storage.Client.from_service_account_info(service_account_info)
 BUCKET_NAME = os.getenv("GOOGLE_STORAGE_BUCKET")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER"),
-            password=os.getenv("PASSWORD"),
-            host=os.getenv("HOST"),
-            port=5432,
-            sslmode="require"
-        )
-        register_vector(conn)
-        return conn
-    except Exception as e:
-        raise Exception(f"Error en la conexión a la base de datos: {e}")
 
 def generate_secure_password(length=12):
     plain_password = "".join(random.choice(string.ascii_letters + string.digits + "!@#$%^&*()") for _ in range(length))
@@ -168,6 +154,7 @@ async def admin_upload_cv(files: list[UploadFile] = File(...)):
             
             # Insertar o actualizar el usuario en la base de datos
             conn = get_db_connection()
+            register_vector(conn)
             cur = conn.cursor()
             cur.execute(
                 'INSERT INTO "User" (email, name, role, description, phone, password, confirmed, "cvUrl", embedding) VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s) '

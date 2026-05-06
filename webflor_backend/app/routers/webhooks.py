@@ -11,6 +11,7 @@ from google.cloud import storage
 import io
 from PyPDF2 import PdfReader
 from pgvector.psycopg2 import register_vector  # Asegúrate de tener instalado pgvector
+from app.database import get_db_connection
 
 load_dotenv()
 
@@ -59,22 +60,6 @@ def read_pdf_from_gcs(file_url):
         text += page.extract_text() or ""
     return text
 
-# Función para obtener la conexión a la base de datos y registrar pgvector
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER", "postgres.apnfioxjddccokgkljvd"),
-            password=os.getenv("PASSWORD", "Pachamama190"),
-            host=os.getenv("HOST", "aws-0-sa-east-1.pooler.supabase.com"),
-            port=5432,  # Fijo en 5432
-            sslmode="require"
-        )
-        register_vector(conn)
-        return conn
-    except Exception as e:
-        raise Exception(f"Error en la conexión a la base de datos: {e}")
-
 # Tarea en background para procesar el archivo
 def process_file_task(payload: dict):
     try:
@@ -106,12 +91,13 @@ def process_file_task(payload: dict):
 
         # Insertar el embedding en la base de datos (omitiendo la columna 'id' que se genera automáticamente)
         conn = get_db_connection()
+        register_vector(conn)
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO file_embeddings 
+            INSERT INTO file_embeddings
                 (user_id, file_name, content, embedding, created_at)
-            VALUES 
+            VALUES
                 (%s, %s, %s, %s, NOW())
             """,
             (user_id, file_url.split("/")[-1], text_content, embedding)

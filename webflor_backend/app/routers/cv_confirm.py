@@ -14,6 +14,7 @@ from PyPDF2 import PdfReader
 import openai # Importar openai para manejar sus excepciones específicas
 from app.email_utils import send_credentials_email
 from app.utils.auth_utils import get_current_admin
+from app.database import get_db_connection
 from pgvector.psycopg2 import register_vector
 import bcrypt
 import urllib.parse
@@ -33,21 +34,6 @@ BUCKET_NAME = os.getenv("GOOGLE_STORAGE_BUCKET")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Función para obtener conexión a la base de datos y registrar pgvector
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER", "postgres.apnfioxjddccokgkljvd"),
-            password=os.getenv("PASSWORD", "Pachamama190"),
-            host=os.getenv("HOST", "aws-0-sa-east-1.pooler.supabase.com"),
-            port=5432,
-            sslmode="require"
-        )
-        register_vector(conn)
-        return conn
-    except Exception as e:
-        raise Exception(f"Error en la conexión a la base de datos: {e}")
 
 def generate_secure_password(length=12):
     """Genera una contraseña segura aleatoria y la hashea con bcrypt."""
@@ -172,6 +158,7 @@ def run_regeneration_for_all_users():
     cur = None
     try:
         conn = get_db_connection()
+        register_vector(conn)
         cur = conn.cursor()
         cur.execute('SELECT id, email, "cvUrl", name FROM "User"')
         users = cur.fetchall()

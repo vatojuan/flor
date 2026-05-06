@@ -1,12 +1,12 @@
-import os
 import psycopg2
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-# Reutilizamos la conexión a la BD desde el router de autenticación
-from app.routers.auth import get_db_connection
+# Reutilizamos la conexión a la BD desde el módulo centralizado
+from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 
 # --- Definición del Modelo Pydantic ---
 class UserInDB(BaseModel):
@@ -18,11 +18,6 @@ class UserInDB(BaseModel):
         from_attributes = True # Reemplaza a orm_mode=True
 
 # --- Configuración de Seguridad ---
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY environment variable is required")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-
 oauth2_scheme_user = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # --- Función Base para Obtener Usuario desde Token (CORREGIDA) ---

@@ -32,12 +32,11 @@ from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorization
 from jose import jwt
 
 from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 from app.routers.match import run_matching_for_job
 from app.routers.proposal import deliver
 
 load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY", "")
-ALGORITHM  = os.getenv("ALGORITHM", "HS256")
 
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 oauth2_user = HTTPBearer()

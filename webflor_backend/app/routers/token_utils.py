@@ -12,9 +12,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecreto")
+from app.core.auth import SECRET_KEY, ALGORITHM
+
 EXPIRATION_MINUTES: int = int(os.getenv("EXPIRATION_MINUTES", "30"))
-ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 
 
 def generate_confirmation_token(email: str) -> str:

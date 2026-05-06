@@ -1,10 +1,8 @@
 // pages/api/auth/register.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../lib/prisma';
 import { generarCodigo } from '../../../lib/generateCode';
 import { hash } from 'bcryptjs';
 import nodemailer from 'nodemailer';
-
-const prisma = new PrismaClient();
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

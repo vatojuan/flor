@@ -3,12 +3,12 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Backgro
 from sentence_transformers import SentenceTransformer
 import PyPDF2
 import io
-import psycopg2
 from dotenv import load_dotenv
 import os
 from datetime import datetime
 
 from app.routers.match import run_matching_for_user  # <-- Importación añadida
+from app.database import get_db_connection
 
 load_dotenv()
 
@@ -29,20 +29,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         return text
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extrayendo el texto: {e}")
-
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER", "postgres.apnfioxjddccokgkljvd"),
-            password=os.getenv("PASSWORD", "Pachamama190"),
-            host=os.getenv("HOST", "aws-0-sa-east-1.pooler.supabase.com"),
-            port=5432,
-            sslmode="require"
-        )
-        return conn
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error conexión BD: {e}")
 
 @router.post("/upload")
 async def upload_file(

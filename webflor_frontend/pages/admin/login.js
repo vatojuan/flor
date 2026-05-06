@@ -12,7 +12,8 @@ export default function AdminLogin() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("https://api.fapmendoza.online/auth/admin-login", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
+      const res = await fetch(`${API_URL}/auth/admin-login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

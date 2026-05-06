@@ -4,8 +4,8 @@ from openai import OpenAI
 from supabase import create_client
 import json 
 import os
-import psycopg2
 from dotenv import load_dotenv
+from app.database import get_db_connection
 
 # Cargar variables de entorno
 load_dotenv()
@@ -41,16 +41,6 @@ def get_embedding(text):
         input=text
     )
     return response["data"][0]["embedding"]
-
-# Conectar a la base de datos
-def get_db_connection():
-    return psycopg2.connect(
-        user=os.getenv("USER"),
-        password=os.getenv("PASSWORD"),
-        host=os.getenv("HOST"),
-        port=os.getenv("PORT"),
-        dbname=os.getenv("DBNAME")
-    )
 
 # Función para descargar y leer el contenido del archivo desde Google Storage
 def read_file_from_gcs(file_url):

@@ -3,17 +3,16 @@ import traceback
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-import psycopg2
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
+from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 
 load_dotenv()
 
 # ─────────────────── JWT ───────────────────
-SECRET_KEY    = os.getenv("SECRET_KEY", "")
-ALGORITHM     = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 
 def get_current_admin(authorization: str = Header(...)) -> str:
@@ -31,20 +30,6 @@ def get_current_admin(authorization: str = Header(...)) -> str:
     except JWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token admin inválido o expirado")
 
-
-# ─────────────────── DB ───────────────────
-def get_db_connection():
-    try:
-        return psycopg2.connect(
-            dbname   = os.getenv("DBNAME"),
-            user     = os.getenv("USER"),
-            password = os.getenv("PASSWORD"),
-            host     = os.getenv("HOST"),
-            port     = int(os.getenv("DB_PORT", 5432)),
-            sslmode  = "require",
-        )
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error conexión BD: {e}")
 
 def get_admin_config() -> Dict[str, bool]:
     conn = cur = None

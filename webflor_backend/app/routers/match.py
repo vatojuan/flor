@@ -18,12 +18,11 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 
 from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 # Se utilizan las funciones centralizadas de email_utils
 from app.email_utils import send_match_notification, send_admin_alert
 
 # ─────────────────── Configuración & Autenticación ───────────────────
-SECRET_KEY: str = os.getenv("SECRET_KEY", "")
-ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://fapmendoza.com").rstrip("/")
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 logger = logging.getLogger(__name__)

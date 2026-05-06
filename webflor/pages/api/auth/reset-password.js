@@ -1,8 +1,6 @@
 // pages/api/auth/reset-password.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../lib/prisma';
 import { hash } from 'bcryptjs';
-
-const prisma = new PrismaClient();
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

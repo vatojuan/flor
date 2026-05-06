@@ -7,7 +7,6 @@ para cada tipo de comunicación transaccional.
 """
 from __future__ import annotations
 
-import os
 import logging
 from datetime import datetime
 
@@ -18,6 +17,7 @@ from jose import JWTError, jwt
 from psycopg2.extras import RealDictCursor
 
 from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 
 load_dotenv()
 # Configuración del logger para que muestre los mensajes en la consola
@@ -25,8 +25,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # ────────────────────── Configuración y Constantes ──────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", "")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 
 # Se expanden los tipos de plantillas para cubrir todas las comunicaciones

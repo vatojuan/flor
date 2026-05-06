@@ -1,28 +1,12 @@
 # app/services/embedding.py
 import os
-import psycopg2
 from dotenv import load_dotenv
-from pgvector.psycopg2 import register_vector
 from openai import OpenAI
+from app.database import get_db_connection
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DBNAME", "postgres"),
-            user=os.getenv("USER"),
-            password=os.getenv("PASSWORD"),
-            host=os.getenv("HOST"),
-            port=5432,
-            sslmode="require"
-        )
-        register_vector(conn)
-        return conn
-    except Exception as e:
-        raise Exception(f"Error en la conexión a la base de datos: {e}")
 
 def update_user_embedding(user_id: str):
     """

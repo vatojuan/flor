@@ -6,7 +6,6 @@ import re
 import os
 import json
 import uuid
-import psycopg2
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form
 from google.cloud import storage
@@ -14,6 +13,7 @@ from PyPDF2 import PdfReader
 from openai import OpenAI
 from app.email_utils import send_confirmation_email
 from app.routers.match import run_matching_for_user  # <-- Importación añadida
+from app.database import get_db_connection
 
 load_dotenv()
 
@@ -25,16 +25,6 @@ BUCKET_NAME = os.getenv("GOOGLE_STORAGE_BUCKET")
 # Configuración de OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-def get_db_connection():
-    return psycopg2.connect(
-        dbname=os.getenv("DBNAME", "postgres"),
-        user=os.getenv("USER", "postgres.apnfioxjddccokgkljvd"),
-        password=os.getenv("PASSWORD", "Pachamama190"),
-        host=os.getenv("HOST", "aws-0-sa-east-1.pooler.supabase.com"),
-        port=5432,
-        sslmode="require"
-    )
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 

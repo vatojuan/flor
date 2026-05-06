@@ -14,15 +14,14 @@ from docx import Document
 from openai import OpenAI
 
 # ──────────────────────────── Config ────────────────────────────
+from app.core.auth import SECRET_KEY, ALGORITHM
+
 load_dotenv()
 
 router = APIRouter(
     prefix="/api/admin/emails",   # todas las rutas cuelgan de aquí
     tags=["email_db"]
 )
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM  = os.getenv("ALGORITHM", "HS256")
 
 SMTP_HOST  = os.getenv("SMTP_HOST")
 SMTP_PORT  = int(os.getenv("SMTP_PORT", 587))

@@ -1,15 +1,13 @@
-import os
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-import psycopg2
 from dotenv import load_dotenv
+from app.database import get_db_connection
+from app.core.auth import SECRET_KEY, ALGORITHM
 
 load_dotenv()
 
 # — JWT admin —
-SECRET_KEY    = os.getenv("SECRET_KEY")
-ALGORITHM     = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 
 def get_current_admin(token: str = Depends(oauth2_scheme)):
@@ -22,19 +20,6 @@ def get_current_admin(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise HTTPException(401, "Token inválido o expirado")
     return payload["sub"]
-
-def get_db_connection():
-    try:
-        return psycopg2.connect(
-            dbname   = os.getenv("DBNAME"),
-            user     = os.getenv("USER"),
-            password = os.getenv("PASSWORD"),
-            host     = os.getenv("HOST"),
-            port     = int(os.getenv("DB_PORT", 5432)),
-            sslmode  = "require"
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Error en la conexión a la BD: {e}")
 
 # --- CORRECCIÓN ---
 # Se restaura el prefijo completo "/api/admin/config" para que funcione con la lógica original de main.py

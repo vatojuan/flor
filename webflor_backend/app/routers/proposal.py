@@ -23,12 +23,11 @@ from app.email_utils import (
     send_cancellation_warning,
     send_admin_alert,
 )
+from app.core.auth import SECRET_KEY, ALGORITHM
 
 load_dotenv()
 
 # ───────────────────── Configuración Global ──────────────────────
-SECRET_KEY: str = os.getenv("SECRET_KEY", "")
-ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 AUTO_DELAY: int = int(os.getenv("AUTO_PROPOSAL_DELAY", "300"))  # segundos
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")

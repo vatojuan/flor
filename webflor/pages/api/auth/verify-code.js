@@ -1,7 +1,5 @@
 // pages/api/auth/verify-code.js
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../lib/prisma';
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

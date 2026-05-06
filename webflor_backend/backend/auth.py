@@ -4,13 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-import os
-
-# Configuración del JWT
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY environment variable is required")
-ALGORITHM = "HS256"
+from app.core.auth import SECRET_KEY, ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 router = APIRouter()
