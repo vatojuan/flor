@@ -7,12 +7,13 @@ import json
 import uuid
 import psycopg2
 import time # Importar la librería time
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, UploadFile, File, Form
 from dotenv import load_dotenv
 from google.cloud import storage
 from PyPDF2 import PdfReader
 import openai # Importar openai para manejar sus excepciones específicas
 from app.email_utils import send_credentials_email
+from app.utils.auth_utils import get_current_admin
 from pgvector.psycopg2 import register_vector
 import bcrypt
 import urllib.parse
@@ -261,7 +262,7 @@ def run_regeneration_for_all_users():
 # Acepta con y sin barra final
 @router.post("/regenerate-all-profiles")
 @router.post("/regenerate-all-profiles/")
-async def regenerate_all_profiles(background_tasks: BackgroundTasks):
+async def regenerate_all_profiles(background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     """
     Endpoint para administradores. Inicia la tarea de regeneración en segundo plano.
     """

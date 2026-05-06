@@ -21,10 +21,9 @@ router = APIRouter(
 )
 
 # ───────────────────────── Configuración JWT y hashing ─────────────────────────
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "A5DD9F4F87075741044F604C552C31ED32E5BD246066A765A4D18DE8D8D83F12",
-)  # Reemplazar por clave segura en producción
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -32,15 +31,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def verify_password(plain_password: str, stored_password: str) -> bool:
-    """
-    Verifica la contraseña.
-    Si la contraseña almacenada es corta (<30), asumimos que está en texto plano.
-    De lo contrario, comparamos con bcrypt.
-    """
     if not stored_password:
         return False
-    if len(stored_password) < 30:
-        return plain_password == stored_password
     return pwd_context.verify(plain_password, stored_password)
 
 

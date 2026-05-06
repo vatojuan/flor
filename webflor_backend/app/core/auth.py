@@ -7,18 +7,16 @@ import os
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Clave secreta y algoritmo para tokens JWT
-SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key_here")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Función para verificar una contraseña
 def verify_password(plain_password, stored_password):
-    if stored_password is None:
+    if not stored_password:
         return False
-
-    if len(stored_password) < 30:  # Si la contraseña es corta, asumimos que no está hasheada
-        return plain_password == stored_password
-
     return pwd_context.verify(plain_password, stored_password)
 
 # Función para generar tokens JWT

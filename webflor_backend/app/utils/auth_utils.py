@@ -18,7 +18,9 @@ class UserInDB(BaseModel):
         from_attributes = True # Reemplaza a orm_mode=True
 
 # --- Configuración de Seguridad ---
-SECRET_KEY = os.getenv("SECRET_KEY", "A5DD9F4F87075741044F604C552C31ED32E5BD246066A765A4D18DE8D8D83F12")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 oauth2_scheme_user = OAuth2PasswordBearer(tokenUrl="/auth/login")

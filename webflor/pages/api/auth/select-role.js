@@ -1,3 +1,5 @@
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "./[...nextauth]";
 import prisma from "../../../lib/prisma";
 
 export default async function handler(req, res) {
@@ -5,7 +7,14 @@ export default async function handler(req, res) {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-  const { email, role } = req.body;
+
+  const session = await getServerSession(req, res, authOptions);
+  if (!session) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const { role } = req.body;
+  const email = session.user.email;
   if (!email || !role) {
     return res.status(400).json({ message: "Faltan campos obligatorios" });
   }
