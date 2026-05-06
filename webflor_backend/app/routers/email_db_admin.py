@@ -30,7 +30,7 @@ SMTP_PASS  = os.getenv("SMTP_PASS")
 FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai_client  = OpenAI(api_key=OPENAI_API_KEY)
+openai_client  = OpenAI(api_key=OPENAI_API_KEY, timeout=30)
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 

@@ -35,7 +35,7 @@ BUCKET_NAME = os.getenv("GOOGLE_STORAGE_BUCKET")
 
 # Configuración de OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+client = openai.OpenAI(api_key=OPENAI_API_KEY, timeout=30)
 
 
 def generate_secure_password(length=12):

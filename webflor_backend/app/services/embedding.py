@@ -6,7 +6,7 @@ from app.database import get_db_connection
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY, timeout=30)
 
 def update_user_embedding(user_id: str):
     """

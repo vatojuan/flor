@@ -176,7 +176,7 @@ async def update_admin_offer(request: Request):
 
     # Generar embedding con OpenAI
     from openai import OpenAI
-    client    = OpenAI(api_key=os.getenv("OPENAI_API_KEY",""))
+    client    = OpenAI(api_key=os.getenv("OPENAI_API_KEY",""), timeout=30)
     embedding = client.embeddings.create(
         input=f"{title} {description} {requirements}",
         model="text-embedding-ada-002"
