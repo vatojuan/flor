@@ -41,7 +41,6 @@ apiRoute.post(async (req, res) => {
         profilePictureFileName: destination,
       },
     });
-    console.log('Imagen de perfil actualizada:', updatedUser);
     return res.status(200).json({ message: 'Imagen de perfil actualizada', user: updatedUser });
   } catch (error) {
     console.error('Error al actualizar la imagen de perfil:', error);

@@ -1,6 +1,8 @@
 # backend/auth.py
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -30,8 +32,11 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/admin-login", tags=["auth"])
-async def admin_login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5/minute")
+async def admin_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user = fake_admin_db.get(form_data.username)
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")

@@ -12,8 +12,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ message: "Todos los campos son obligatorios" });
   }
 
-  console.log("SMTP_HOST:", process.env.SMTP_HOST); // Verifica que se cargue la variable
-
   // Configurar el transporter con las variables SMTP
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,

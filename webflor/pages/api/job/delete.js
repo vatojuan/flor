@@ -21,8 +21,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se proporcionó el jobId' });
     }
 
-    console.log(`🔍 Buscando oferta de trabajo con ID: ${jobId}`);
-
     // Verificar si la oferta existe antes de eliminarla
     const job = await prisma.job.findUnique({
       where: { id: Number(jobId) },
@@ -30,18 +28,13 @@ export default async function handler(req, res) {
     });
 
     if (!job) {
-      console.warn(`⚠️ No se encontró la oferta con ID: ${jobId}`);
       return res.status(404).json({ error: 'Oferta de trabajo no encontrada' });
     }
 
-    console.log(`🗑️ Eliminando oferta: ${job.title} (ID: ${jobId})`);
-    
     // Eliminar la oferta (esto incluye el embedding porque está en la misma tabla)
     await prisma.job.delete({
       where: { id: Number(jobId) },
     });
-
-    console.log(`✅ Oferta eliminada exitosamente: ${job.title}`);
 
     return res.status(200).json({
       message: 'Oferta eliminada correctamente',
@@ -50,7 +43,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('❌ Error eliminando la oferta:', error);
-    return res.status(500).json({ error: 'Error al eliminar la oferta', details: error.message });
+    return res.status(500).json({ error: 'Error al eliminar la oferta' });
   }
 }
 

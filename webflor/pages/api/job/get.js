@@ -7,8 +7,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Se requiere el ID de la oferta" });
     }
 
-    console.log(`📌 Buscando oferta con ID: ${id}`);
-
     const job = await prisma.job.findUnique({
       where: { id: Number(id) },
       include: { applications: true },

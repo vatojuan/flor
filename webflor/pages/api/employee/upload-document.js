@@ -24,7 +24,6 @@ const storage = new Storage({
 //});
 
 const bucketName = process.env.GCLOUD_BUCKET;
-console.log("Bucket Name:", bucketName);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -47,9 +46,6 @@ export default async function handler(req, res) {
       });
     });
 
-    console.log("Fields:", fields);
-    console.log("Files:", files.document);
-
     if (!files.document) {
       return res.status(400).json({ error: "No se encontró el archivo" });
     }
@@ -57,20 +53,14 @@ export default async function handler(req, res) {
     const uploadedFile = Array.isArray(files.document)
       ? files.document[0]
       : files.document;
-    console.log("Uploaded file:", uploadedFile);
-
     if (!uploadedFile.filepath) {
       return res.status(500).json({ error: "Error: La ruta del archivo está vacía." });
     }
-
-    console.log("Ruta del archivo:", uploadedFile.filepath);
 
     // Genera un nombre único para el archivo
     const fileKey = `employee-documents/${Date.now()}_${
       uploadedFile.originalFilename || "archivo_sin_nombre"
     }`;
-    console.log(`Subiendo archivo ${fileKey} al bucket ${bucketName}`);
-
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileKey);
 
@@ -85,12 +75,10 @@ export default async function handler(req, res) {
       });
 
       writeStream.on("finish", () => {
-        console.log("✅ Archivo subido exitosamente a Google Cloud Storage");
         resolve();
       });
 
       writeStream.on("error", (err) => {
-        console.error("❌ Error en writeStream:", err);
         reject(err);
       });
 
@@ -98,29 +86,11 @@ export default async function handler(req, res) {
     });
 
     // Validaciones antes de guardar en la base de datos
-    const userId = Number(fields.userId) || 1; // Asegura que userId no sea null
-    const originalName = uploadedFile.originalFilename || "archivo_sin_nombre";
-
-    console.log("📌 Verificando datos antes de la inserción en BD:");
-    console.log(`🔹 fileKey: ${fileKey}`);
-    console.log(`🔹 originalName: ${originalName}`);
-    console.log(`🔹 userId: ${userId}`);
-
-    console.log("💾 Verificando conexión con Prisma...");
-
-    // Prueba simple de conexión con Prisma
-    try {
-      const testQuery = await prisma.user.findFirst();
-      console.log("✅ Conexión con Prisma exitosa:", testQuery);
-    } catch (dbTestError) {
-      console.error("❌ Error al probar la conexión con Prisma:", dbTestError);
-      return res.status(500).json({
-        error: "Error al conectar con la base de datos",
-        details: dbTestError.message,
-      });
+    const userId = Number(fields.userId);
+    if (!userId) {
+      return res.status(400).json({ error: "userId es requerido" });
     }
-
-    console.log("💾 Insertando en la base de datos...");
+    const originalName = uploadedFile.originalFilename || "archivo_sin_nombre";
 
     // Guarda el documento en la base de datos con manejo de errores detallado
     let newDocument;
@@ -133,12 +103,10 @@ export default async function handler(req, res) {
           userId: userId,
         },
       });
-      console.log("✅ Documento guardado en la base de datos:", newDocument);
     } catch (dbError) {
-      console.error("❌ Error en la base de datos:", dbError);
+      console.error("Error en la base de datos:", dbError);
       return res.status(500).json({
         error: "Error al insertar en la base de datos",
-        details: dbError.message,
       });
     }
 
@@ -147,7 +115,6 @@ export default async function handler(req, res) {
       // Aumentamos el timeout a 10 segundos
       const controller = new AbortController();
       const timeout = setTimeout(() => {
-        console.error("❌ Timeout alcanzado en la petición webhook, abortando...");
         controller.abort();
       }, 10000);
 
@@ -162,27 +129,18 @@ export default async function handler(req, res) {
       });
       clearTimeout(timeout);
       if (!webhookResponse.ok) {
-        const errBody = await webhookResponse.text();
-        console.error("❌ Error en la respuesta del webhook:", errBody);
-      } else {
-        const webhookData = await webhookResponse.json();
-        console.log("✅ Webhook response:", webhookData);
+        console.error("Error en la respuesta del webhook");
       }
     } catch (webhookError) {
-      if (webhookError.name === "AbortError") {
-        console.error("❌ Webhook request timed out.");
-      } else {
-        console.error("❌ Error al enviar webhook:", webhookError);
-      }
+      console.error("Error al enviar webhook:", webhookError);
       // Continuamos sin bloquear la respuesta principal
     }
 
     return res.status(200).json({ document: newDocument });
   } catch (error) {
-    console.error("❌ Error general en la subida de documento:", error);
+    console.error("Error general en la subida de documento:", error);
     return res.status(500).json({
       error: "Error subiendo el documento",
-      details: error.message,
     });
   }
 }

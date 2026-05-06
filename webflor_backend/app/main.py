@@ -2,6 +2,10 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import logging
 
 # --- Configuración del Logger ---
@@ -33,11 +37,16 @@ from backend.auth import router as admin_auth_router
 
 # --- Configuración de la App ---
 load_dotenv()
+
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="FAP Mendoza API",
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # --- Middleware de CORS ---
 origins_env = os.getenv("FRONTEND_ORIGINS", "http://localhost:3000,https://fapmendoza.online")
@@ -54,9 +63,9 @@ app.add_middleware(
 # --- Middleware de Logging ---
 @app.middleware("http")
 async def log_request(request: Request, call_next):
-    logger.info(f"📥 {request.method} {request.url.path}")
+    logger.info("%s %s", request.method, request.url.path)
     response = await call_next(request)
-    logger.info(f"📤 {response.status_code}")
+    logger.info("Response: %s", response.status_code)
     return response
 
 # --- Inclusión de Routers (Lógica Original Restaurada) ---
@@ -87,9 +96,13 @@ app.include_router(admin_auth_router, prefix="/auth", tags=["admin"])
 def home():
     return {"ok": True, "message": "API de FAP Mendoza funcionando."}
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 @app.on_event("startup")
 def list_routes():
     url_list = [{"path": route.path, "name": route.name} for route in app.routes]
-    logger.info("✅ Rutas cargadas exitosamente:")
+    logger.info("Rutas cargadas:")
     for route in url_list:
         logger.info(f"  - Path: {route['path']}")

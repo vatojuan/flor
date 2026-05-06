@@ -1,7 +1,9 @@
 # app/routers/auth.py
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from jose import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -55,8 +57,11 @@ class GoogleLoginIn(BaseModel):
 
 
 # ──────────────────────────────── Endpoint: /auth/login ────────────────────────────
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/login", summary="Login con email y contraseña")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Autentica al usuario con email y contraseña.
     Retorna un JSON con {"access_token": "...", "token_type": "bearer"}.

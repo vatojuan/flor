@@ -24,7 +24,6 @@ async function getUserEmbedding(text) {
     }
 
     const data = await response.json();
-    console.log("✅ Embedding generado exitosamente");
     return data.data[0].embedding;
   } catch (error) {
     console.error("❌ Error generando embedding:", error.message);
@@ -63,10 +62,8 @@ export default async function handler(req, res) {
     }
   } else if (req.method === 'PUT') {
     const { name, phone, description } = req.body;
-    console.log(`🔄 Actualizando perfil del usuario ${employeeId}`);
     let embedding = null;
     if (description) {
-      console.log("🔍 Generando embedding para la descripción...");
       embedding = await getUserEmbedding(description);
       if (!embedding) {
         console.warn("⚠️ No se pudo generar el embedding, se procederá sin actualizarlo");
@@ -87,7 +84,6 @@ export default async function handler(req, res) {
         where: { id: employeeId },
         data: updateData,
       });
-      console.log(`✅ Perfil actualizado correctamente para el usuario ${employeeId}`);
       return res.status(200).json(updatedProfile);
     } catch (error) {
       console.error('Error actualizando el perfil:', error);

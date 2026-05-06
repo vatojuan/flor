@@ -37,7 +37,6 @@ export default async function handler(req, res) {
     console.error("Error fetching jobs:", error);
     return res.status(500).json({
       error: "Error interno del servidor",
-      details: error.message || "Sin detalles",
     });
   }
 }

@@ -1,5 +1,6 @@
 # app/routers/cv_processing.py
 import io
+import logging
 import random
 import string
 import re
@@ -14,6 +15,8 @@ from openai import OpenAI
 from app.email_utils import send_confirmation_email
 from app.routers.match import run_matching_for_user  # <-- Importación añadida
 from app.database import get_db_connection
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -91,14 +94,14 @@ async def upload_cv(
     try:
         # 1) Leer bytes del CV
         file_bytes = await file.read()
-        print(f"✅ Archivo recibido: {file.filename}, tamaño: {len(file_bytes)} bytes")
+        logger.info("Archivo recibido: %s, tamano: %d bytes", file.filename, len(file_bytes))
 
         # 2) Normalizar nombre y subir a GCS
         safe_filename = sanitize_filename(file.filename)
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"pending_cv_uploads/{safe_filename}")
         blob.upload_from_string(file_bytes, content_type=file.content_type)
-        print(f"✅ Archivo subido a GCS: {blob.public_url}")
+        logger.info("Archivo subido a GCS: %s", blob.public_url)
 
         # 3) Extraer texto y email
         text_content = extract_text_from_pdf(file_bytes)
@@ -109,11 +112,11 @@ async def upload_cv(
         if not user_email:
             raise HTTPException(status_code=400, detail="No se encontró un email válido en el CV")
         user_email = user_email.lower()
-        print(f"✅ Email extraído: {user_email}")
+        logger.info("Email extraido para usuario")
 
         # 4) Generar código de confirmación y guardar en pending_users
         confirmation_code = str(uuid.uuid4())
-        print(f"✅ Código de confirmación generado: {confirmation_code}")
+        logger.info("Codigo de confirmacion generado")
 
         user_id = None
         try:
@@ -135,9 +138,9 @@ async def upload_cv(
             conn.commit()
             cur.close()
             conn.close()
-            print("✅ Registro pendiente insertado/actualizado en la base de datos")
+            logger.info("Registro pendiente insertado/actualizado en la base de datos")
         except Exception as db_err:
-            print(f"❌ Error insertando en la base de datos: {db_err}")
+            logger.error("Error insertando en la base de datos: %s", db_err)
             raise HTTPException(status_code=500, detail=f"Error base de datos: {db_err}")
 
         # 5) Enviar email de confirmación en segundo plano
@@ -156,5 +159,5 @@ async def upload_cv(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error procesando el CV: {e}")
+        logger.error("Error procesando el CV: %s", e)
         raise HTTPException(status_code=500, detail=f"Error procesando el CV: {e}")

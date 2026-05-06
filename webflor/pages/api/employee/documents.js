@@ -20,8 +20,6 @@ export default async function handler(req, res) {
   const userId = Number(session.user.id);
 
   try {
-    console.log(`[API /api/employee/documents] Buscando documentos para el usuario ID: ${userId}`);
-
     // 2. Buscamos en la base de datos TODOS los documentos que coincidan con el userId
     //    Asegúrate de que tu modelo en Prisma se llame 'employeeDocument' o ajústalo al nombre correcto.
     const documents = await prisma.employeeDocument.findMany({
@@ -38,12 +36,9 @@ export default async function handler(req, res) {
 
     // Si no se encuentran documentos, devolvemos un array vacío, lo cual es correcto.
     if (!documents) {
-        console.log(`[API /api/employee/documents] No se encontraron documentos para el usuario ID: ${userId}`);
         return res.status(200).json({ documents: [] });
     }
 
-    console.log(`[API /api/employee/documents] Se encontraron ${documents.length} documentos.`);
-    
     // 3. Devolvemos la lista de documentos encontrados
     return res.status(200).json({ documents });
 

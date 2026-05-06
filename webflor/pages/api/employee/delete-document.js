@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({ file_url: fileUrl })
       });
       const webhookData = await webhookResponse.json();
-      console.log("Webhook deletion response:", webhookData);
+      // Webhook response received
     } catch (webhookError) {
       console.error("Error al enviar el webhook de eliminación:", webhookError);
     }

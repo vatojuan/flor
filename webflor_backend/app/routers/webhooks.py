@@ -1,4 +1,5 @@
 # app/routers/webhooks.py
+import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from supabase import create_client
 import psycopg2
@@ -35,6 +36,8 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 service_account_info = json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"))
 storage_client = storage.Client.from_service_account_info(service_account_info)
 BUCKET_NAME = os.getenv("GOOGLE_STORAGE_BUCKET")
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/webhooks",
@@ -79,7 +82,7 @@ def process_file_task(payload: dict):
 
         file_url = payload["file_url"]
 
-        print(f"📥 Procesando archivo en background: {file_url} para usuario: {user_id}")
+        logger.info("Procesando archivo en background: %s para usuario: %s", file_url, user_id)
 
         # Leer el archivo (suponemos que es PDF)
         text_content = read_pdf_from_gcs(file_url)
@@ -106,9 +109,9 @@ def process_file_task(payload: dict):
         cur.close()
         conn.close()
 
-        print(f"✅ Embedding guardado con éxito para archivo: {file_url}")
+        logger.info("Embedding guardado con exito para archivo: %s", file_url)
     except Exception as e:
-        print(f"❌ Error en procesamiento de archivo en background: {e}")
+        logger.error("Error en procesamiento de archivo en background: %s", e)
 
 # Endpoint webhook para notificar subida de archivo
 @router.post("/file_uploaded")

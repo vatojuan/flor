@@ -39,6 +39,6 @@ export default async function handler(req, res) {
     console.error("Error al obtener postulaciones (proxy):", error);
     return res
       .status(500)
-      .json({ error: error.message || "Error interno del servidor" });
+      .json({ error: "Error interno del servidor" });
   }
 }

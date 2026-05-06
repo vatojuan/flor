@@ -1,4 +1,5 @@
 # app/routers/training.py
+import logging
 import os
 import json
 import uuid
@@ -22,6 +23,8 @@ from app.utils.auth_utils import (
 )
 from app.routers.auth import get_db_connection
 
+logger = logging.getLogger(__name__)
+
 # ============================================================================
 #                        CONFIGURACIÓN GCS
 # ============================================================================
@@ -36,9 +39,9 @@ try:
         credentials = service_account.Credentials.from_service_account_info(info)
         storage_client = storage.Client(credentials=credentials)
     else:
-        print("⚠️  Falta la var GOOGLE_APPLICATION_CREDENTIALS_JSON.")
+        logger.warning("Falta la var GOOGLE_APPLICATION_CREDENTIALS_JSON.")
 except (json.JSONDecodeError, ValueError) as e:
-    print(f"❌ Error cargando credenciales GCS: {e}")
+    logger.error("Error cargando credenciales GCS: %s", e)
 
 # ============================================================================
 #                               ROUTER
@@ -77,7 +80,7 @@ def delete_blob_from_gcs(blob_name: str):
         if blob.exists():
             blob.delete()
     except Exception as e:
-        print(f"❌ No se pudo borrar {blob_name}: {e}")
+        logger.error("No se pudo borrar %s: %s", blob_name, e)
 
 # ============================================================================
 #                    ENDPOINTS PARA ADMINISTRADORES

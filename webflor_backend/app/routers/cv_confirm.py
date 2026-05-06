@@ -1,4 +1,5 @@
 import io
+import logging
 import random
 import string
 import re
@@ -18,6 +19,8 @@ from app.database import get_db_connection
 from pgvector.psycopg2 import register_vector
 import bcrypt
 import urllib.parse
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -153,7 +156,7 @@ def run_regeneration_for_all_users():
     Tarea en segundo plano para regenerar los perfiles de todos los usuarios,
     con manejo de errores de API y pausas para evitar rate limiting.
     """
-    print("🚀 INICIANDO TAREA DE REGENERACIÓN DE PERFILES PARA TODOS LOS USUARIOS 🚀")
+    logger.info("INICIANDO TAREA DE REGENERACION DE PERFILES PARA TODOS LOS USUARIOS")
     conn = None
     cur = None
     try:
@@ -162,44 +165,44 @@ def run_regeneration_for_all_users():
         cur = conn.cursor()
         cur.execute('SELECT id, email, "cvUrl", name FROM "User"')
         users = cur.fetchall()
-        print(f"👥 Se encontraron {len(users)} usuarios para procesar.")
+        logger.info("Se encontraron %d usuarios para procesar.", len(users))
         bucket = storage_client.bucket(BUCKET_NAME)
 
         for user_id, user_email, cv_url, current_name in users:
             try:
-                print(f"\n--- 🔄 Procesando usuario ID: {user_id}, Email: {user_email} ---")
+                logger.info("Procesando usuario ID: %s", user_id)
                 
                 if not cv_url or not cv_url.startswith(f"https://storage.googleapis.com/{BUCKET_NAME}/"):
-                    print(f"⚠️ URL de CV inválida o ausente para el usuario {user_id}. Saltando.")
+                    logger.warning("URL de CV invalida o ausente para el usuario %s. Saltando.", user_id)
                     continue
                 
                 file_path = cv_url.replace(f"https://storage.googleapis.com/{BUCKET_NAME}/", "")
                 blob = bucket.blob(file_path)
                 if not blob.exists():
-                    print(f"⚠️ El archivo del CV no se encontró en GCS en la ruta: {file_path}. Saltando.")
+                    logger.warning("El archivo del CV no se encontro en GCS en la ruta: %s. Saltando.", file_path)
                     continue
 
                 file_bytes = blob.download_as_bytes()
-                print(f"✅ CV descargado desde: {cv_url}")
+                logger.info("CV descargado desde: %s", cv_url)
 
                 text_content = extract_text_from_pdf(file_bytes)
                 if not text_content:
-                    print(f"⚠️ No se pudo extraer texto del CV para el usuario {user_id}. Saltando.")
+                    logger.warning("No se pudo extraer texto del CV para el usuario %s. Saltando.", user_id)
                     continue
                 
                 new_phone = extract_phone(text_content)
-                print(f"✅ Nuevo teléfono extraído: {new_phone}")
+                logger.info("Nuevo telefono extraido: %s", new_phone)
 
                 # --- Bloque de llamadas a OpenAI con manejo de errores ---
                 try:
                     new_name = extract_name(text_content)
                     if not new_name:
-                        print("⚠️ OpenAI no encontró un nombre válido. Se mantiene el nombre actual o se genera desde el email.")
+                        logger.warning("OpenAI no encontro un nombre valido. Se mantiene el nombre actual o se genera desde el email.")
                         if current_name is None or "no encontrado" in current_name.lower() or "@" in current_name:
                             new_name = user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
                         else:
                             new_name = current_name
-                    print(f"✅ Nuevo nombre: {new_name}")
+                    logger.info("Nuevo nombre: %s", new_name)
 
                     description_prompt = [
                         {"role": "system", "content": "Eres un analista de RR.HH. experto. Tu objetivo es crear un resumen profesional y atractivo basado exclusivamente en el CV. La longitud del resumen debe ser proporcional a la información útil del CV, sin rellenar y sin superar los 950 caracteres. Redacta en un tono profesional y directo."},
@@ -210,19 +213,19 @@ def run_regeneration_for_all_users():
                         frequency_penalty=0.1, presence_penalty=0.1
                     )
                     description = description_response.choices[0].message.content.strip()
-                    print(f"✅ Nueva descripción generada ({len(description)} caracteres).")
+                    logger.info("Nueva descripcion generada (%d caracteres).", len(description))
 
                     embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=description)
                     embedding_desc = embedding_response_desc.data[0].embedding
-                    print("✅ Nuevo embedding de descripción generado.")
+                    logger.info("Nuevo embedding de descripcion generado.")
 
                 except openai.APIStatusError as e:
                     if e.status_code == 429:
-                        print("❌❌ ERROR CRÍTICO: Cuota de OpenAI excedida. Deteniendo la tarea de regeneración. ❌❌")
-                        print("Por favor, revisa tu plan y facturación en platform.openai.com.")
+                        logger.error("ERROR CRITICO: Cuota de OpenAI excedida. Deteniendo la tarea de regeneracion.")
+                        logger.error("Por favor, revisa tu plan y facturacion en platform.openai.com.")
                         break 
                     else:
-                        print(f"❌ ERROR de API de OpenAI procesando al usuario {user_id}: {e}. Saltando al siguiente usuario.")
+                        logger.error("ERROR de API de OpenAI procesando al usuario %s: %s. Saltando al siguiente usuario.", user_id, e)
                         continue 
 
                 cur.execute(
@@ -230,21 +233,21 @@ def run_regeneration_for_all_users():
                     (new_name, description, new_phone, embedding_desc, user_id)
                 )
                 conn.commit()
-                print(f"✅ Perfil del usuario {user_id} actualizado en la base de datos.")
+                logger.info("Perfil del usuario %s actualizado en la base de datos.", user_id)
 
                 # Pausa para no sobrecargar la API de OpenAI
-                print("⏳ Pausando por 2 segundos...")
+                logger.info("Pausando por 2 segundos...")
                 time.sleep(2)
 
             except Exception as e:
-                print(f"❌ ERROR GENERAL procesando al usuario {user_id} ({user_email}): {e}")
+                logger.error("ERROR GENERAL procesando al usuario %s: %s", user_id, e)
                 if conn: conn.rollback() 
     except Exception as e:
-        print(f"❌❌ ERROR CRÍTICO durante la tarea de regeneración: {e}")
+        logger.error("ERROR CRITICO durante la tarea de regeneracion: %s", e)
     finally:
         if cur: cur.close()
         if conn: conn.close()
-        print("\n🏁 TAREA DE REGENERACIÓN DE PERFILES FINALIZADA 🏁")
+        logger.info("TAREA DE REGENERACION DE PERFILES FINALIZADA")
 
 # Acepta con y sin barra final
 @router.post("/regenerate-all-profiles")
@@ -253,7 +256,7 @@ async def regenerate_all_profiles(background_tasks: BackgroundTasks, admin=Depen
     """
     Endpoint para administradores. Inicia la tarea de regeneración en segundo plano.
     """
-    print("⚡️ Solicitud recibida para regenerar todos los perfiles. Añadiendo a tareas en segundo plano. ⚡️")
+    logger.info("Solicitud recibida para regenerar todos los perfiles. Anadiendo a tareas en segundo plano.")
     background_tasks.add_task(run_regeneration_for_all_users)
     return {"message": "El proceso de regeneración de perfiles ha comenzado en segundo plano. Revisa los logs del servidor para ver el progreso."}
 
@@ -267,7 +270,7 @@ async def confirm_email(code: str = Query(...)):
     conn = None
     cur = None
     try:
-        print(f"🔎 Buscando código de confirmación: {code}")
+        logger.info("Buscando codigo de confirmacion: %s", code)
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -278,7 +281,7 @@ async def confirm_email(code: str = Query(...)):
         user_email, cv_url = user_data
         
         user_email = user_email.lower()
-        print(f"✅ Registro encontrado para {user_email} con CV URL: {cv_url}")
+        logger.info("Registro encontrado para usuario con CV URL: %s", cv_url)
 
         decoded_url = urllib.parse.unquote(cv_url)
         old_path_full = decoded_url.replace(f"https://storage.googleapis.com/{BUCKET_NAME}/", "")
@@ -289,36 +292,36 @@ async def confirm_email(code: str = Query(...)):
             old_path = f"{folder}/{filename}"
         else:
             old_path = sanitize_filename(old_path_full)
-        print(f"🔎 Path del archivo obtenido: {old_path}")
+        logger.info("Path del archivo obtenido: %s", old_path)
 
         new_path = old_path.replace("pending_cv_uploads", "employee-documents")
-        print(f"🔎 Nuevo path: {new_path}")
+        logger.info("Nuevo path: %s", new_path)
 
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(old_path)
         new_blob = bucket.rename_blob(blob, new_path)
         new_cv_url = f"https://storage.googleapis.com/{BUCKET_NAME}/{new_path}"
-        print(f"✅ CV movido a {new_cv_url}")
+        logger.info("CV movido a %s", new_cv_url)
 
         file_bytes = new_blob.download_as_bytes()
 
         text_content = extract_text_from_pdf(file_bytes)
         if not text_content:
             raise HTTPException(status_code=400, detail="No se pudo extraer texto del CV")
-        print(f"✅ Texto del CV obtenido (total de {len(text_content)} caracteres)")
+        logger.info("Texto del CV obtenido (total de %d caracteres)", len(text_content))
         
         phone_number = extract_phone(text_content)
-        print(f"✅ Teléfono extraído: {phone_number}")
+        logger.info("Telefono extraido: %s", phone_number)
         
         # --- Bloque de llamadas a OpenAI con manejo de errores ---
         try:
             name_from_cv = extract_name(text_content)
             if not name_from_cv:
-                print("⚠️ OpenAI no encontró el nombre en el CV, usando parte del email como referencia.")
+                logger.warning("OpenAI no encontro el nombre en el CV, usando parte del email como referencia.")
                 name_from_cv = user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
-            print(f"✅ Nombre extraído con OpenAI: {name_from_cv}")
+            logger.info("Nombre extraido con OpenAI: %s", name_from_cv)
 
-            print("🧠 Iniciando generación de descripción profesional y adaptativa...")
+            logger.info("Iniciando generacion de descripcion profesional y adaptativa...")
             description_prompt = [
                 {"role": "system", "content": "Eres un analista de RR.HH. experto. Tu objetivo es crear un resumen profesional y atractivo basado exclusivamente en el CV. La longitud del resumen debe ser proporcional a la información útil del CV, sin rellenar y sin superar los 950 caracteres. Redacta en un tono profesional y directo."},
                 {"role": "user", "content": f"Analiza y resume el siguiente CV:\n\n---\n{text_content[:4000]}\n---"}
@@ -328,15 +331,15 @@ async def confirm_email(code: str = Query(...)):
                 frequency_penalty=0.1, presence_penalty=0.1
             )
             description = description_response.choices[0].message.content.strip()
-            print(f"✅ Descripción generada ({len(description)} caracteres).")
+            logger.info("Descripcion generada (%d caracteres).", len(description))
 
             embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=text_content)
             embedding_cv = embedding_response.data[0].embedding
-            print("✅ Embedding del CV generado exitosamente")
+            logger.info("Embedding del CV generado exitosamente")
 
             embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=description)
             embedding_desc = embedding_response_desc.data[0].embedding
-            print("✅ Embedding de la descripción generado exitosamente")
+            logger.info("Embedding de la descripcion generado exitosamente")
 
         except openai.APIStatusError as e:
             if e.status_code == 429:
@@ -345,7 +348,7 @@ async def confirm_email(code: str = Query(...)):
                 raise HTTPException(status_code=500, detail=f"Ocurrió un error con la API de OpenAI: {e}")
 
         plain_password, hashed_password = generate_secure_password()
-        print("✅ Contraseña segura generada y hasheada")
+        logger.info("Contrasena segura generada y hasheada")
 
         cur.execute(
             'INSERT INTO "User" (email, name, role, description, phone, password, confirmed, "cvUrl", embedding) VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s) '
@@ -355,7 +358,7 @@ async def confirm_email(code: str = Query(...)):
         )
         user_id = cur.fetchone()[0]
         conn.commit()
-        print("✅ Usuario insertado/actualizado en la base de datos con id:", user_id)
+        logger.info("Usuario insertado/actualizado en la base de datos con id: %s", user_id)
 
         cur.execute(
             'INSERT INTO "FileEmbedding" ("fileKey", embedding, "createdAt") VALUES (%s, %s::vector, NOW()) '
@@ -363,21 +366,21 @@ async def confirm_email(code: str = Query(...)):
             (new_path, embedding_cv)
         )
         conn.commit()
-        print("✅ Embedding del CV almacenado en FileEmbedding")
+        logger.info("Embedding del CV almacenado en FileEmbedding")
 
         cur.execute(
             'INSERT INTO "EmployeeDocument" ("userId", url, "fileKey", "originalName", "createdAt") VALUES (%s, %s, %s, %s, NOW())',
             (user_id, new_cv_url, new_path, new_path.split("/")[-1])
         )
         conn.commit()
-        print("✅ Registro en EmployeeDocument insertado")
+        logger.info("Registro en EmployeeDocument insertado")
 
         cur.execute("DELETE FROM pending_users WHERE email = %s", (user_email,))
         conn.commit()
-        print("✅ Registro en pending_users eliminado")
+        logger.info("Registro en pending_users eliminado")
 
         send_credentials_email(user_email, user_email, plain_password)
-        print(f"✅ Credenciales enviadas a {user_email}")
+        logger.info("Credenciales enviadas al usuario")
 
         return {"message": "Cuenta confirmada exitosamente."}
 
@@ -385,7 +388,7 @@ async def confirm_email(code: str = Query(...)):
         # Re-lanza las excepciones HTTP para que FastAPI las maneje
         raise http_exc
     except Exception as e:
-        print(f"❌ Error confirmando cuenta: {e}")
+        logger.error("Error confirmando cuenta: %s", e)
         if conn and not conn.closed: conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error interno confirmando cuenta: {e}")
     finally:
