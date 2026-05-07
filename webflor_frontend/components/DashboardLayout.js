@@ -26,7 +26,8 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import EmailIcon from "@mui/icons-material/Email";
-import SchoolIcon from '@mui/icons-material/School'; // <-- 1. IMPORTA EL NUEVO ÍCONO
+import SchoolIcon from "@mui/icons-material/School";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
@@ -124,6 +125,7 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
     { text: "Propuestas", icon: <AssignmentIcon />, href: "/admin/propuestas" },
     { text: "Plantillas", icon: <WidgetsIcon />, href: "/admin/templates" },
     { text: "BD e-mails", icon: <EmailIcon />, href: "/admin/bd_emails" },
+    { text: "Asistente FAP", icon: <SmartToyIcon />, href: "/admin/agente" },
     { text: "Configuraciones", icon: <SettingsIcon />, href: "/admin/configuraciones" },
   ];
 

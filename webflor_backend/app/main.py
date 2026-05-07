@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # --- Carga de Routers ---
 from app.routers import (
+    agent,
     auth,
     cv_confirm,
     cv_upload,
@@ -70,6 +71,7 @@ async def log_request(request: Request, call_next):
 
 # --- Inclusión de Routers (Lógica Original Restaurada) ---
 # Cada router es responsable de su propio prefijo.
+app.include_router(agent.router)
 app.include_router(auth.router)
 app.include_router(cv_confirm.router)
 app.include_router(cv_upload.router)
