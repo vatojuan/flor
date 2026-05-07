@@ -75,12 +75,30 @@ export default function Contacto() {
             Completa el formulario y nos pondremos en contacto contigo lo antes posible.
           </Typography>
 
-          {/* Formulario en un Paper blanco para destacar */}
-          <Paper elevation={4} sx={{ p: 4, bgcolor: "background.paper" }}>
+          {/* Formulario */}
+          <Paper elevation={4} sx={{
+            p: 4,
+            backgroundColor: "rgba(16,59,64,0.85)",
+            color: "#FFF",
+            borderRadius: 3,
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}>
             <Box
               component="form"
               onSubmit={handleSubmit}
-              sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+              sx={{
+                display: "flex", flexDirection: "column", gap: 3,
+                "& .MuiTextField-root": {
+                  "& .MuiOutlinedInput-root": {
+                    color: "#FFF",
+                    "& fieldset": { borderColor: "rgba(255,255,255,0.3)" },
+                    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.5)" },
+                    "&.Mui-focused fieldset": { borderColor: "#D96236" },
+                  },
+                  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.6)" },
+                  "& .MuiInputLabel-root.Mui-focused": { color: "#D96236" },
+                },
+              }}
             >
               <TextField
                 label="Nombre"
