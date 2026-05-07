@@ -29,6 +29,7 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import SearchIcon from "@mui/icons-material/Search";
+import GroupsIcon from "@mui/icons-material/Groups";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -182,6 +183,11 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       label: "Buscar Personal",
       href: "/servicios/busqueda",
       icon: <SearchIcon sx={{ fontSize: 40 }} />,
+    },
+    {
+      label: "Tercerizar Personal",
+      href: "/soluciones/outsourcing#solicitar",
+      icon: <GroupsIcon sx={{ fontSize: 40 }} />,
     },
   ];
 

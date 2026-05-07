@@ -42,7 +42,19 @@ class SearchServiceRequest(BaseModel):
     position: str
     quantity: int = 1
     requirements: str
-    urgency: str = "normal"  # "urgente", "normal", "flexible"
+    urgency: str = "normal"
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OutsourcingRequest(BaseModel):
+    company_name: str
+    contact_name: str
+    contact_email: str
+    contact_phone: str
+    positions: str  # "3 mozos, 2 recepcionistas"
+    duration: str = "indefinido"  # "temporal", "indefinido", "a definir"
+    requirements: str
     location: Optional[str] = None
     notes: Optional[str] = None
 
@@ -217,19 +229,91 @@ def list_service_requests(status: Optional[str] = None):
 
 @router.patch("/requests/{request_id}/complete", dependencies=[Depends(get_current_admin)])
 def complete_request(request_id: str):
-    """Mark a service request as completed."""
+    """Advance service request to next status."""
     conn = cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # Check current status
+        cur.execute("SELECT status FROM service_requests WHERE request_id = %s", (request_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, "Solicitud no encontrada")
+
+        current = row[0]
+        # State machine: outsourcing_new → outsourcing_contacted → outsourcing_active
+        #                paid → completed
+        next_status_map = {
+            "paid": "completed",
+            "outsourcing_new": "outsourcing_contacted",
+            "outsourcing_contacted": "outsourcing_active",
+        }
+        next_status = next_status_map.get(current)
+        if not next_status:
+            raise HTTPException(400, f"No se puede avanzar desde el estado '{current}'")
+
         cur.execute("""
-            UPDATE service_requests SET status = 'completed', completed_at = NOW()
-            WHERE request_id = %s AND status = 'paid'
-        """, (request_id,))
-        if cur.rowcount == 0:
-            raise HTTPException(404, "Solicitud no encontrada o no esta pagada")
+            UPDATE service_requests SET status = %s, completed_at = NOW()
+            WHERE request_id = %s
+        """, (next_status, request_id))
         conn.commit()
-        return {"message": "Solicitud marcada como completada"}
+        return {"message": f"Solicitud actualizada a '{next_status}'"}
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+# ═══════════ Outsourcing Requests ═══════════
+
+@router.post("/request-outsourcing")
+async def request_outsourcing(req: OutsourcingRequest):
+    """
+    Public endpoint — company requests outsourcing service.
+    No payment required upfront — sends alert to admin for follow-up.
+    """
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        request_id = str(uuid.uuid4())[:12]
+
+        cur.execute("""
+            INSERT INTO service_requests
+            (request_id, company_name, contact_name, contact_email, contact_phone,
+             position, quantity, requirements, urgency, location, notes, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'outsourcing_new', NOW())
+        """, (request_id, req.company_name, req.contact_name, req.contact_email,
+              req.contact_phone, req.positions, 0, req.requirements,
+              req.duration, req.location, req.notes))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        # Notify admin immediately
+        send_admin_alert(
+            subject=f"Nueva solicitud de OUTSOURCING — {req.company_name}",
+            details=(
+                f"Empresa: {req.company_name}\n"
+                f"Contacto: {req.contact_name}\n"
+                f"Email: {req.contact_email}\n"
+                f"Telefono: {req.contact_phone}\n"
+                f"Puestos: {req.positions}\n"
+                f"Duracion: {req.duration}\n"
+                f"Requisitos: {req.requirements}\n"
+                f"Ubicacion: {req.location or 'No especificada'}\n"
+                f"Notas: {req.notes or '-'}\n\n"
+                f"Esta solicitud NO requiere pago previo.\n"
+                f"Contactar a la empresa para cerrar el acuerdo de outsourcing."
+            ),
+        )
+
+        return {
+            "request_id": request_id,
+            "message": "Solicitud recibida. Nos pondremos en contacto a la brevedad.",
+        }
+
+    except Exception as e:
+        logger.error("Error creating outsourcing request: %s", e)
+        raise HTTPException(500, "Error procesando la solicitud")

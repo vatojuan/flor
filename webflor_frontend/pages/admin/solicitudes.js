@@ -17,6 +17,9 @@ const STATUS_MAP = {
   paid: { label: "Pagada", color: "success" },
   completed: { label: "Completada", color: "default" },
   rejected: { label: "Rechazada", color: "error" },
+  outsourcing_new: { label: "Outsourcing (nuevo)", color: "info" },
+  outsourcing_contacted: { label: "Outsourcing (contactado)", color: "primary" },
+  outsourcing_active: { label: "Outsourcing (activo)", color: "success" },
 };
 
 export default function SolicitudesPage() {
@@ -113,7 +116,7 @@ export default function SolicitudesPage() {
                       <TableCell><Chip label={st.label} size="small" color={st.color} /></TableCell>
                       <TableCell>{new Date(req.created_at).toLocaleDateString("es-AR")}</TableCell>
                       <TableCell>
-                        {req.status === "paid" && (
+                        {(req.status === "paid" || req.status === "outsourcing_new") && (
                           <Box sx={{ display: "flex", gap: 1 }}>
                             <Button size="small" variant="contained" startIcon={<SmartToyIcon />}
                               onClick={() => goToAgent(req)}>
@@ -121,9 +124,15 @@ export default function SolicitudesPage() {
                             </Button>
                             <Button size="small" variant="outlined" startIcon={<CheckIcon />}
                               onClick={() => setSelected(req)}>
-                              Completar
+                              {req.status === "outsourcing_new" ? "Contactado" : "Completar"}
                             </Button>
                           </Box>
+                        )}
+                        {req.status === "outsourcing_contacted" && (
+                          <Button size="small" variant="outlined" color="success" startIcon={<CheckIcon />}
+                            onClick={() => setSelected(req)}>
+                            Cerrar acuerdo
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
