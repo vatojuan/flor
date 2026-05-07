@@ -117,8 +117,13 @@ def health_check():
     return {"status": "healthy"}
 
 @app.on_event("startup")
-def list_routes():
+def on_startup():
     url_list = [{"path": route.path, "name": route.name} for route in app.routes]
-    logger.info("Rutas cargadas:")
-    for route in url_list:
-        logger.info(f"  - Path: {route['path']}")
+    logger.info("Rutas cargadas: %d endpoints", len(url_list))
+
+    # Start inbox auto-scan cron
+    try:
+        from app.services.inbox_cron import start_cron
+        start_cron()
+    except Exception as e:
+        logger.warning("Could not start inbox cron: %s", e)

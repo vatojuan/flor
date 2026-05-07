@@ -10,9 +10,64 @@ from typing import Optional
 from app.database import get_db_connection
 from app.utils.auth_utils import get_current_admin
 from app.services.inbox_scanner import scan_inbox
+from app.services.inbox_cron import start_cron, stop_cron, restart_cron
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
+
+
+class CronConfig(BaseModel):
+    enabled: bool = True
+    interval_minutes: int = 30
+
+
+@router.get("/cron-config", dependencies=[Depends(get_current_admin)])
+def get_cron_config():
+    """Get current cron scanning configuration."""
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM admin_config WHERE key IN ('inbox_cron_enabled', 'inbox_cron_interval')")
+        rows = cur.fetchall()
+        config = {r[0]: r[1] for r in rows}
+        return {
+            "enabled": config.get("inbox_cron_enabled", "true").lower() == "true",
+            "interval_minutes": int(config.get("inbox_cron_interval", "30")),
+        }
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@router.post("/cron-config", dependencies=[Depends(get_current_admin)])
+def update_cron_config(config: CronConfig):
+    """Update cron scanning configuration and restart scheduler."""
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Upsert both config values
+        for key, value in [("inbox_cron_enabled", str(config.enabled).lower()), ("inbox_cron_interval", str(config.interval_minutes))]:
+            cur.execute("""
+                INSERT INTO admin_config (key, value) VALUES (%s, %s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            """, (key, value))
+        conn.commit()
+
+        # Restart scheduler with new config
+        if config.enabled:
+            restart_cron()
+        else:
+            stop_cron()
+
+        return {"message": f"Escaneo automatico {'activado' if config.enabled else 'desactivado'} (cada {config.interval_minutes} min)", **config.dict()}
+    except Exception as e:
+        logger.error("Error updating cron config: %s", e)
+        raise HTTPException(500, "Error guardando configuracion")
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 class EmailAccountConfig(BaseModel):

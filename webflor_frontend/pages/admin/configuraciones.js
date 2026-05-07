@@ -10,8 +10,15 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
 } from "@mui/material";
+import TimerIcon from "@mui/icons-material/Timer";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
 
@@ -28,6 +35,10 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
   });
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  // Cron config
+  const [cronEnabled, setCronEnabled] = useState(true);
+  const [cronInterval, setCronInterval] = useState(30);
 
   // Este helper ya no es estrictamente necesario si siempre usamos la barra, pero lo dejamos como una buena práctica defensiva.
   async function fetchWithFallback(path, opts) {
@@ -70,10 +81,16 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
           show_expired_employer_offers: data.show_expired_employer_offers === true || data.show_expired_employer_offers === "true"
         });
       })
-      .catch(err => {
-        console.error("Error cargando config:", err);
-        setSnackbar({ open: true, message: "Error cargando configuración", severity: "error" });
-      });
+      .catch(() => {});
+
+    // Load cron config
+    fetch(`${BASE}/api/inbox/cron-config`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        setCronEnabled(data.enabled);
+        setCronInterval(data.interval_minutes);
+      })
+      .catch(() => {});
   }, [loading, user]);
 
   /* ──── Handlers ──── */
@@ -191,6 +208,56 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
           >
             {isRegenerating ? "Procesando..." : "Regenerar Perfiles de Usuarios"}
           </Button>
+        </Paper>
+
+        <Typography variant="h4" gutterBottom sx={{ mt: 5 }}>
+          <TimerIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+          Escaneo Automatico de Bandejas
+        </Typography>
+        <Paper sx={{ p: 3, mt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            El sistema puede escanear automaticamente las bandejas de entrada configuradas
+            para procesar nuevos CVs y clasificar emails.
+          </Typography>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+            <FormControlLabel
+              control={<Switch checked={cronEnabled} onChange={(e) => setCronEnabled(e.target.checked)} />}
+              label={cronEnabled ? "Activado" : "Desactivado"}
+            />
+
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Intervalo</InputLabel>
+              <Select value={cronInterval} label="Intervalo" onChange={(e) => setCronInterval(e.target.value)}
+                disabled={!cronEnabled}>
+                <MenuItem value={10}>Cada 10 minutos</MenuItem>
+                <MenuItem value={15}>Cada 15 minutos</MenuItem>
+                <MenuItem value={30}>Cada 30 minutos</MenuItem>
+                <MenuItem value={60}>Cada 1 hora</MenuItem>
+                <MenuItem value={120}>Cada 2 horas</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Button variant="contained" onClick={() => {
+              const token = localStorage.getItem("adminToken");
+              fetch(`${BASE}/api/inbox/cron-config`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ enabled: cronEnabled, interval_minutes: cronInterval }),
+              })
+                .then(r => r.json())
+                .then(data => setSnackbar({ open: true, message: data.message, severity: "success" }))
+                .catch(() => setSnackbar({ open: true, message: "Error guardando", severity: "error" }));
+            }}>
+              Guardar
+            </Button>
+
+            <Chip
+              label={cronEnabled ? `Escaneando cada ${cronInterval} min` : "Desactivado"}
+              color={cronEnabled ? "success" : "default"}
+              variant="outlined"
+            />
+          </Box>
         </Paper>
 
       </Container>
