@@ -64,6 +64,9 @@ export default function ProfileEmpleado() {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
 
+  // Active/searching status
+  const [isActive, setIsActive] = useState(true);
+
   // Confirm-dialog state: document delete
   const [openDocDeleteDialog, setOpenDocDeleteDialog] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState(null);
@@ -72,6 +75,23 @@ export default function ProfileEmpleado() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 
   // --------------- Account delete ---------------
+  const toggleActive = async () => {
+    try {
+      const jwt = session?.accessToken || session?.user?.token;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/users/toggle-active`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsActive(data.active);
+        showSnackbar(data.message, "success");
+      }
+    } catch {
+      showSnackbar("Error al cambiar el estado", "error");
+    }
+  };
+
   const confirmDeleteAccount = async () => {
     try {
       const res = await axios.delete("/api/user/delete");
@@ -420,7 +440,31 @@ export default function ProfileEmpleado() {
           </Link>
         </Box>
 
-        {/* ====== SECTION 3 — Account deletion (danger zone) ====== */}
+        {/* ====== SECTION 3 — Search status toggle ====== */}
+        <Paper elevation={0} sx={{ ...paperSx }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Estado de busqueda
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {isActive
+                  ? "Tu perfil esta activo — podes recibir ofertas de trabajo por email."
+                  : "Tu perfil esta pausado — no recibiras emails de ofertas. Podes reactivarlo en cualquier momento."}
+              </Typography>
+            </Box>
+            <Button
+              variant={isActive ? "outlined" : "contained"}
+              color={isActive ? "warning" : "success"}
+              onClick={toggleActive}
+              sx={{ minWidth: 140 }}
+            >
+              {isActive ? "Pausar perfil" : "Reactivar perfil"}
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* ====== SECTION 4 — Account deletion (danger zone) ====== */}
         <Paper
           elevation={0}
           sx={{

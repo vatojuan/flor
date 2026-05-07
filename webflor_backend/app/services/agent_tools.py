@@ -23,7 +23,7 @@ def search_candidates(
         conn = get_db_connection()
         cur = conn.cursor()
 
-        conditions = ['u.role = %s', 'u.confirmed = TRUE']
+        conditions = ['u.role = %s', 'u.confirmed = TRUE', 'COALESCE(u.active, TRUE) = TRUE']
         params = ['empleado']
 
         if rubro:

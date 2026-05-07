@@ -108,6 +108,7 @@ def run_matching_for_job(job_id: int) -> None:
              WHERE u.embedding IS NOT NULL
                AND u.role = 'empleado'
                AND u.confirmed = TRUE
+               AND COALESCE(u.active, TRUE) = TRUE
         """, (job_id, job_embedding, job_rubro, RUBRO_BONUS))
         conn.commit()
         logger.info("Inserted %d matches for job %s (is_paid=%s)", cur.rowcount, job_id, is_paid)
@@ -135,8 +136,9 @@ def run_matching_for_job(job_id: int) -> None:
 
 def _send_match_notifications(conn, cur, job_id: int) -> int:
     """Send notification emails for matches above threshold. Returns count sent."""
+    backend_url = os.getenv("BACKEND_URL", "https://api.fapmendoza.online")
     cur.execute("""
-        SELECT m.id, m.score, u.name, u.email, j.title
+        SELECT m.id, m.score, u.id, u.name, u.email, j.title
           FROM matches m
           JOIN "User" u ON u.id = m.user_id
           JOIN "Job"  j ON j.id = m.job_id
@@ -148,7 +150,7 @@ def _send_match_notifications(conn, cur, job_id: int) -> int:
     sent_count = 0
     logger.info("Sending %d match notifications for job %s", len(matches_to_notify), job_id)
 
-    for match_id, score, user_name, user_email, job_title in matches_to_notify:
+    for match_id, score, user_id, user_name, user_email, job_title in matches_to_notify:
         if not user_email:
             continue
 
@@ -160,6 +162,7 @@ def _send_match_notifications(conn, cur, job_id: int) -> int:
             "job_title": job_title,
             "score": f"{float(score) * 100:.0f}%",
             "apply_link": apply_link,
+            "unsubscribe_link": f"{backend_url}/api/users/unsubscribe/{user_id}",
         }
 
         try:

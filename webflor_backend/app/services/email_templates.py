@@ -98,6 +98,7 @@ def match_notification(context: dict) -> tuple[str, str]:
     job_title = context.get("job_title", "una oferta")
     score = context.get("score", "N/A")
     apply_link = context.get("apply_link", "#")
+    unsubscribe_link = context.get("unsubscribe_link", "")
 
     subject = f"{name}, encontramos una oportunidad para ti"
     content = f"""
@@ -112,6 +113,7 @@ def match_notification(context: dict) -> tuple[str, str]:
       <a href="{apply_link}" class="btn">Ver oferta y postularme</a>
     </p>
     <p style="font-size: 13px; color: #888;">Este enlace es unico para vos y estara activo durante 30 dias.</p>
+    {"<p style='font-size: 11px; color: #aaa; margin-top: 24px; text-align: center;'>Ya encontraste trabajo? <a href=" + chr(34) + unsubscribe_link + chr(34) + " style=" + chr(34) + "color: #D96236;" + chr(34) + ">Dejar de recibir ofertas</a></p>" if unsubscribe_link else ""}
     """
     return subject, _base_template(content, f"Compatibilidad {score} con {job_title}")
 

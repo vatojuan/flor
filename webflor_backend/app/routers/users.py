@@ -86,6 +86,53 @@ async def get_public_profile(user_id: int):
             conn.close()
 
 
+@router.patch("/toggle-active")
+def toggle_active(request: Request, db: Session = Depends(get_db)):
+    """Toggle the active/searching status of the authenticated user."""
+    from app.utils.auth_utils import get_current_active_user
+    from fastapi import Depends as _Dep
+    # Simple token extraction
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Token requerido")
+    token = auth.replace("Bearer ", "")
+    from app.utils.auth_utils import get_current_user_from_token
+    user = get_current_user_from_token(token)
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT COALESCE(active, TRUE) FROM "User" WHERE id = %s', (user.id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        raise HTTPException(404, "Usuario no encontrado")
+
+    new_active = not row[0]
+    cur.execute('UPDATE "User" SET active = %s WHERE id = %s', (new_active, user.id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"active": new_active, "message": "Perfil activado" if new_active else "Perfil pausado — no recibiras mas emails de ofertas"}
+
+
+@router.get("/unsubscribe/{user_id}")
+def unsubscribe(user_id: int, token: str = None):
+    """
+    Public one-click unsubscribe link (included in match notification emails).
+    Sets the user as inactive without requiring login.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('UPDATE "User" SET active = FALSE WHERE id = %s AND role = %s', (user_id, "empleado"))
+    if cur.rowcount == 0:
+        cur.close(); conn.close()
+        raise HTTPException(404, "Usuario no encontrado")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": "Te has dado de baja de las notificaciones de ofertas. Podes reactivar tu perfil desde tu cuenta en cualquier momento."}
+
+
 @router.put("/me", response_model=UserOut)
 async def update_my_profile(
     request: Request,

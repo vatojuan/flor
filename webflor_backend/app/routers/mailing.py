@@ -43,7 +43,7 @@ def preview_segment(req: PreviewRequest):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL"]
+        conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL", "COALESCE(u.active, TRUE) = TRUE"]
         params = []
 
         if req.rubro:
@@ -104,7 +104,7 @@ def send_segmented_mailing(req: MailingRequest, background_tasks: BackgroundTask
             )
         elif req.segment:
             # Send to segment
-            conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL"]
+            conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL", "COALESCE(u.active, TRUE) = TRUE"]
             params = []
 
             if req.segment.rubro:
