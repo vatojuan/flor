@@ -34,6 +34,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import StarIcon from "@mui/icons-material/Star";
+import InboxIcon from "@mui/icons-material/Inbox";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
@@ -178,6 +179,11 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       label: "Actualizar Perfil",
       href: "/profile-empleador",
       icon: <PersonIcon sx={{ fontSize: 40 }} />,
+    },
+    {
+      label: "Mis Postulaciones",
+      href: "/employer/postulaciones",
+      icon: <InboxIcon sx={{ fontSize: 40 }} />,
     },
     {
       label: "Buscar Personal",

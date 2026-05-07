@@ -9,16 +9,18 @@ import {
   MenuItem,
   SvgIcon,
   Fab,
+  Tooltip,
 } from "@mui/material";
+import Image from "next/image";
 import Link from "next/link";
-import Footer from "./Footer"; // Asegúrate de que la ruta a tu componente Footer sea correcta
+import Footer from "./Footer";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { useSession } from "next-auth/react"; // 1. Importamos useSession para manejar la lógica de autenticación
+import { useSession } from "next-auth/react";
 
-// Ícono de Instagram personalizado (sin cambios)
+// Ícono de Instagram personalizado
 function InstagramIcon(props) {
   return (
     <SvgIcon {...props}>
@@ -27,9 +29,55 @@ function InstagramIcon(props) {
   );
 }
 
+// Estilos comunes para links de navegación
+const navLinkSx = {
+  color: "inherit",
+  fontSize: "0.95rem",
+  fontWeight: 500,
+  position: "relative",
+  px: 1.5,
+  py: 1,
+  borderRadius: "8px",
+  transition: "all 0.2s ease",
+  "&:hover": {
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    bottom: 4,
+    left: "50%",
+    transform: "translateX(-50%) scaleX(0)",
+    width: "60%",
+    height: "2px",
+    backgroundColor: "#D96236",
+    transition: "transform 0.25s ease",
+    borderRadius: "1px",
+  },
+  "&:hover::after": {
+    transform: "translateX(-50%) scaleX(1)",
+  },
+};
+
+// Estilos para botones CTA destacados
+const ctaButtonSx = {
+  fontSize: "0.9rem",
+  fontWeight: 600,
+  px: 2.5,
+  py: 0.8,
+  borderRadius: "24px",
+  transition: "all 0.25s ease",
+  borderWidth: "2px",
+  "&:hover": {
+    borderWidth: "2px",
+    transform: "translateY(-1px)",
+    boxShadow: "0 4px 12px rgba(217, 98, 54, 0.3)",
+  },
+};
+
 export default function MainLayout({ children }) {
   const router = useRouter();
-  const { data: session, status } = useSession(); // 2. Obtenemos el estado de la sesión
+  const { data: session, status } = useSession();
   const [solucionesAnchor, setSolucionesAnchor] = useState(null);
 
   const handleSolucionesOpen = (event) => setSolucionesAnchor(event.currentTarget);
@@ -39,7 +87,6 @@ export default function MainLayout({ children }) {
     router.push(path);
   };
 
-  // Determina si la página actual es la de inicio para aplicar estilos diferentes a la AppBar
   const isHomePage = router.pathname === '/';
 
   return (
@@ -48,42 +95,101 @@ export default function MainLayout({ children }) {
         display: "flex",
         flexDirection: "column",
         minHeight: "100vh",
-        // El fondo verde se aplicará en todas las páginas excepto en la de inicio, que tiene video.
         backgroundColor: isHomePage ? 'transparent' : '#103B40',
         color: "#FFFFFF",
-        position: 'relative', // Necesario para que el z-index de los videos funcione correctamente
+        position: 'relative',
         zIndex: 1,
       }}
     >
-      {/* AppBar ahora es parte del Layout general */}
+      {/* AppBar con backdrop blur moderno */}
       <AppBar
         position="fixed"
         sx={(theme) => ({
-          // La AppBar es transparente en la home (para ver el video) y en el resto de páginas en desktop.
-          // En móvil, siempre tiene un fondo semitransparente para legibilidad.
-          backgroundColor: "transparent !important",
-          boxShadow: "none",
+          backgroundColor: "rgba(16, 59, 64, 0.6) !important",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.08)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
           zIndex: 1100,
+          transition: "all 0.3s ease",
           [theme.breakpoints.down("sm")]: {
-            backgroundColor: "rgba(16, 59, 64, 0.9) !important",
+            backgroundColor: "rgba(16, 59, 64, 0.92) !important",
           },
         })}
       >
-        <Toolbar sx={{ flexWrap: "wrap", gap: 1 }}>
-          <Button component={Link} href="/nosotros" color="inherit">
-            Nosotros
-          </Button>
-          <Button color="inherit" onClick={handleSolucionesOpen}>
-            Soluciones
-          </Button>
+        <Toolbar
+          sx={{
+            gap: { xs: 0.5, sm: 1.5 },
+            py: 0.5,
+            minHeight: { xs: 64, sm: 70 },
+          }}
+        >
+          {/* Logo en la navbar */}
+          <Box
+            component={Link}
+            href="/"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              mr: { xs: 1, sm: 2 },
+              flexShrink: 0,
+              transition: "opacity 0.2s ease",
+              "&:hover": { opacity: 0.85 },
+            }}
+          >
+            <Image
+              src="/images/Fap-marca-blanca(chico).png"
+              alt="FAP RRHH"
+              width={44}
+              height={44}
+              style={{ objectFit: "contain" }}
+            />
+          </Box>
 
-          {/* Menú Soluciones UNIFICADO */}
+          {/* Links de navegación */}
+          <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5 }}>
+            <Button component={Link} href="/nosotros" sx={navLinkSx}>
+              Nosotros
+            </Button>
+            <Button sx={navLinkSx} onClick={handleSolucionesOpen}>
+              Soluciones
+            </Button>
+            <Button component={Link} href="/contacto" sx={navLinkSx}>
+              Contacto
+            </Button>
+          </Box>
+
+          {/* Menú Soluciones */}
           <Menu
             id="soluciones-menu"
             anchorEl={solucionesAnchor}
             open={Boolean(solucionesAnchor)}
             onClose={handleSolucionesClose}
             MenuListProps={{ "aria-labelledby": "soluciones-button" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  mt: 1,
+                  borderRadius: "12px",
+                  backdropFilter: "blur(16px)",
+                  backgroundColor: "rgba(16, 59, 64, 0.95)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                  "& .MuiMenuItem-root": {
+                    color: "#fff",
+                    fontSize: "0.95rem",
+                    py: 1.2,
+                    px: 2.5,
+                    borderRadius: "8px",
+                    mx: 0.5,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: "rgba(217, 98, 54, 0.2)",
+                    },
+                  },
+                },
+              },
+            }}
           >
             <MenuItem onClick={() => handleSolucionesNavigate("/soluciones/recruitment")}>
               Recruitment Process
@@ -102,83 +208,166 @@ export default function MainLayout({ children }) {
             </MenuItem>
           </Menu>
 
-          <Button component={Link} href="/contacto" color="inherit">
-            Contacto
-          </Button>
-          <Button
-            variant="outlined"
-            color="inherit"
-            component={Link}
-            href="/cv/upload"
-          >
-            Subir CV
-          </Button>
-          <Button
-            variant="outlined"
-            color="inherit"
-            component={Link}
-            href="/servicios/busqueda"
-          >
-            Necesito Personal
-          </Button>
-          
-          {/* 3. Lógica de sesión centralizada en el Layout */}
-          {status === "loading" ? null : session ? (
-            <Button component={Link} href="/dashboard" color="inherit">
-              Dashboard
-            </Button>
-          ) : (
-            <Button component={Link} href="/login" color="inherit">
-              Ingresar
-            </Button>
-          )}
+          {/* Espaciador flexible */}
+          <Box sx={{ flexGrow: 1 }} />
 
-          <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-            <IconButton
-              onClick={() => window.open("https://www.instagram.com/faprrhh", "_blank")}
-              color="inherit"
+          {/* Botones CTA */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 } }}>
+            <Button
+              variant="outlined"
+              component={Link}
+              href="/cv/upload"
+              sx={{
+                ...ctaButtonSx,
+                color: "#fff",
+                borderColor: "rgba(255,255,255,0.5)",
+                "&:hover": {
+                  ...ctaButtonSx["&:hover"],
+                  borderColor: "#fff",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                },
+                display: { xs: "none", sm: "inline-flex" },
+              }}
             >
-              <InstagramIcon />
-            </IconButton>
-            <IconButton
-              onClick={() => window.open("https://www.linkedin.com/in/florenciaalvarezfap", "_blank")}
-              color="inherit"
+              Subir CV
+            </Button>
+            <Button
+              variant="contained"
+              component={Link}
+              href="/servicios/busqueda"
+              sx={{
+                ...ctaButtonSx,
+                backgroundColor: "#D96236",
+                color: "#fff",
+                border: "2px solid #D96236",
+                "&:hover": {
+                  ...ctaButtonSx["&:hover"],
+                  backgroundColor: "#B0482B",
+                  borderColor: "#B0482B",
+                },
+                display: { xs: "none", sm: "inline-flex" },
+              }}
             >
-              <LinkedInIcon />
-            </IconButton>
+              Necesito Personal
+            </Button>
+
+            {/* Login / Dashboard */}
+            {status === "loading" ? null : session ? (
+              <Button component={Link} href="/dashboard" sx={navLinkSx}>
+                Dashboard
+              </Button>
+            ) : (
+              <Button component={Link} href="/login" sx={navLinkSx}>
+                Ingresar
+              </Button>
+            )}
+
+            {/* Redes sociales */}
+            <Box sx={{ display: "flex", ml: { xs: 0, sm: 1 } }}>
+              <Tooltip title="Instagram" arrow>
+                <IconButton
+                  onClick={() => window.open("https://www.instagram.com/faprrhh", "_blank")}
+                  color="inherit"
+                  sx={{
+                    transition: "all 0.2s ease",
+                    "&:hover": { backgroundColor: "rgba(217, 98, 54, 0.2)", transform: "scale(1.1)" },
+                  }}
+                >
+                  <InstagramIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="LinkedIn" arrow>
+                <IconButton
+                  onClick={() => window.open("https://www.linkedin.com/in/florenciaalvarezfap", "_blank")}
+                  color="inherit"
+                  sx={{
+                    transition: "all 0.2s ease",
+                    "&:hover": { backgroundColor: "rgba(217, 98, 54, 0.2)", transform: "scale(1.1)" },
+                  }}
+                >
+                  <LinkedInIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {/* Links de navegación para mobile (debajo del toolbar) */}
+          <Box
+            sx={{
+              display: { xs: "flex", md: "none" },
+              width: "100%",
+              justifyContent: "center",
+              gap: 0.5,
+              mt: 0.5,
+              pb: 0.5,
+            }}
+          >
+            <Button component={Link} href="/nosotros" sx={{ ...navLinkSx, fontSize: "0.85rem", px: 1 }}>
+              Nosotros
+            </Button>
+            <Button sx={{ ...navLinkSx, fontSize: "0.85rem", px: 1 }} onClick={handleSolucionesOpen}>
+              Soluciones
+            </Button>
+            <Button component={Link} href="/contacto" sx={{ ...navLinkSx, fontSize: "0.85rem", px: 1 }}>
+              Contacto
+            </Button>
+            <Button
+              component={Link}
+              href="/cv/upload"
+              sx={{ ...navLinkSx, fontSize: "0.85rem", px: 1, color: "#D96236" }}
+            >
+              Subir CV
+            </Button>
+            <Button
+              component={Link}
+              href="/servicios/busqueda"
+              sx={{ ...navLinkSx, fontSize: "0.85rem", px: 1, color: "#D96236" }}
+            >
+              Personal
+            </Button>
           </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Contenido principal de cada página */}
+      {/* Contenido principal */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          // Añadimos padding superior para que el contenido no quede oculto por la AppBar fija
-          pt: { xs: "72px", sm: "80px" },
+          pt: { xs: "110px", md: "80px" },
         }}
       >
         {children}
       </Box>
 
-      {/* Footer se renderiza al final */}
       <Footer />
 
-      {/* Botón flotante de WhatsApp */}
-      <Box sx={{ position: "fixed", bottom: 16, right: 16, zIndex: 1200 }}>
-        <Fab
-          color="success"
-          aria-label="WhatsApp"
-          onClick={() =>
-            window.open(
-              "http://api.whatsapp.com/send?phone=542622542125&text=Me+interesa+el+Servicio+de+Recursos+Humanos",
-              "_blank"
-            )
-          }
-        >
-          <WhatsAppIcon />
-        </Fab>
+      {/* Botón flotante de WhatsApp con animación */}
+      <Box sx={{ position: "fixed", bottom: 24, right: 24, zIndex: 1200 }}>
+        <Tooltip title="Chateá con nosotros" placement="left" arrow>
+          <Fab
+            color="success"
+            aria-label="WhatsApp"
+            onClick={() =>
+              window.open(
+                "http://api.whatsapp.com/send?phone=542622542125&text=Me+interesa+el+Servicio+de+Recursos+Humanos",
+                "_blank"
+              )
+            }
+            sx={{
+              width: 60,
+              height: 60,
+              boxShadow: "0 4px 20px rgba(37, 211, 102, 0.4)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "scale(1.1)",
+                boxShadow: "0 6px 28px rgba(37, 211, 102, 0.5)",
+              },
+            }}
+          >
+            <WhatsAppIcon sx={{ fontSize: 30 }} />
+          </Fab>
+        </Tooltip>
       </Box>
     </Box>
   );

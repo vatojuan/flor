@@ -33,6 +33,17 @@ export default function Home() {
             width: "100%", height: "100%", objectFit: "cover",
           }}
         />
+        {/* Overlay con gradiente sutil para dar profundidad */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0, left: 0,
+            width: "100%", height: "100%",
+            background:
+              "linear-gradient(180deg, rgba(16,59,64,0.3) 0%, transparent 30%, transparent 60%, rgba(16,59,64,0.5) 100%)",
+            pointerEvents: "none",
+          }}
+        />
       </Box>
     </MainLayout>
   );
