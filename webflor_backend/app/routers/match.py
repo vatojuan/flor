@@ -2,15 +2,16 @@
 """
 Matching logic between candidates and job offers.
 
-Uses pgvector cosine similarity with rubro-based pre-filtering
-and dynamic threshold for better precision.
+- Gratis: matching se calcula y guarda, pero NO se envían emails
+- Paga (is_paid): matching se calcula Y se envían emails a candidatos
+- Admin: puede ver todos los matches y enviar emails manualmente
 """
 from __future__ import annotations
 
 import os
 import uuid
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordBearer
@@ -22,11 +23,8 @@ from app.core.auth import SECRET_KEY, ALGORITHM
 from app.email_utils import send_match_notification, send_admin_alert
 
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://fapmendoza.com").rstrip("/")
-# Minimum score to consider a match (0-1 scale)
 MATCH_THRESHOLD: float = float(os.getenv("MATCH_THRESHOLD", "0.75"))
-# Bonus applied when rubro matches exactly
 RUBRO_BONUS: float = 0.05
-# Only notify matches above this score
 NOTIFY_THRESHOLD: float = float(os.getenv("NOTIFY_THRESHOLD", "0.78"))
 
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
@@ -39,20 +37,21 @@ router = APIRouter(prefix="/api/match", tags=["matchings"])
 class MatchJobInfo(BaseModel):
     id: int
     title: str
-    rubro: str | None = None
+    rubro: Optional[str] = None
+    is_paid: Optional[bool] = None
 
 class MatchUserInfo(BaseModel):
     id: int
-    email: str | None = None
-    name: str | None = None
-    rubro: str | None = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    rubro: Optional[str] = None
+    phone: Optional[str] = None
 
 class MatchItem(BaseModel):
-    """Un match entre candidato y oferta."""
     id: int
     score: float
-    sent_at: str | None = None
-    status: str | None = None
+    sent_at: Optional[str] = None
+    status: Optional[str] = None
     job: MatchJobInfo
     user: MatchUserInfo
 
@@ -72,29 +71,31 @@ def _cur_to_dicts(cur) -> List[Dict[str, Any]]:
 # ═══════════ Matching: New Job Created ═══════════
 
 def run_matching_for_job(job_id: int) -> None:
-    """Calculate and notify matches for a new job offer."""
+    """
+    Calculate matches for a job offer.
+    - ALWAYS calculates and stores match scores
+    - Only sends notification emails if the job is PAID (is_paid=True)
+    """
     conn = cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get job embedding and rubro
+        # Get job embedding, rubro, and payment status
         cur.execute(
-            'SELECT embedding, rubro FROM "Job" WHERE id = %s AND embedding IS NOT NULL',
+            'SELECT embedding, rubro, is_paid FROM "Job" WHERE id = %s AND embedding IS NOT NULL',
             (job_id,),
         )
         row = cur.fetchone()
         if not row:
             logger.info("Matching skipped: Job %s has no embedding", job_id)
             return
-        job_embedding, job_rubro = row
+        job_embedding, job_rubro, is_paid = row
 
         # Clear previous matches for this job
         cur.execute("DELETE FROM matches WHERE job_id = %s", (job_id,))
 
-        # Insert matches with combined score:
-        # Base: cosine similarity between user embedding and job embedding
-        # Bonus: +0.05 if rubro matches exactly
+        # Insert matches with combined score
         cur.execute("""
             INSERT INTO matches (job_id, user_id, score, status)
             SELECT %s, u.id,
@@ -109,54 +110,15 @@ def run_matching_for_job(job_id: int) -> None:
                AND u.confirmed = TRUE
         """, (job_id, job_embedding, job_rubro, RUBRO_BONUS))
         conn.commit()
-        logger.info("Inserted %d matches for job %s", cur.rowcount, job_id)
+        logger.info("Inserted %d matches for job %s (is_paid=%s)", cur.rowcount, job_id, is_paid)
 
-        # Notify matches above threshold, ordered by score
-        cur.execute("""
-            SELECT m.id, m.score, u.name, u.email, j.title
-              FROM matches m
-              JOIN "User" u ON u.id = m.user_id
-              JOIN "Job"  j ON j.id = m.job_id
-             WHERE m.job_id = %s AND (m.score)::float >= %s
-             ORDER BY m.score DESC
-        """, (job_id, NOTIFY_THRESHOLD))
+        # Only send emails if the job is PAID
+        if not is_paid:
+            logger.info("Job %s is free — matches saved but no emails sent", job_id)
+            return
 
-        matches_to_notify = cur.fetchall()
-        logger.info("Notifying %d matches (score >= %.0f%%)", len(matches_to_notify), NOTIFY_THRESHOLD * 100)
-
-        for match_id, score, user_name, user_email, job_title in matches_to_notify:
-            if not user_email:
-                continue
-
-            apply_token = str(uuid.uuid4())
-            apply_link = f"{FRONTEND_URL}/apply/{apply_token}"
-
-            context = {
-                "applicant_name": user_name or "Candidato",
-                "job_title": job_title,
-                "score": f"{float(score) * 100:.0f}%",
-                "apply_link": apply_link,
-            }
-
-            try:
-                send_match_notification(user_email, context)
-                cur.execute(
-                    "UPDATE matches SET apply_token=%s, status='sent', sent_at=NOW() WHERE id=%s",
-                    (apply_token, match_id),
-                )
-                cur.execute("""
-                    INSERT INTO apply_tokens (token, job_id, applicant_id, expires_at, used)
-                    VALUES (%s, %s, (SELECT user_id FROM matches WHERE id=%s), NOW() + INTERVAL '30 days', FALSE)
-                    ON CONFLICT(token) DO NOTHING
-                """, (apply_token, job_id, match_id))
-                conn.commit()
-            except Exception as e:
-                logger.error("Error notifying match %s: %s", match_id, e)
-                cur.execute(
-                    "UPDATE matches SET status='error', error_msg=%s WHERE id=%s",
-                    (str(e)[:250], match_id),
-                )
-                conn.commit()
+        # Notify matches above threshold (PAID jobs only)
+        _send_match_notifications(conn, cur, job_id)
 
     except Exception as e:
         if conn:
@@ -171,10 +133,63 @@ def run_matching_for_job(job_id: int) -> None:
         if conn: conn.close()
 
 
+def _send_match_notifications(conn, cur, job_id: int) -> int:
+    """Send notification emails for matches above threshold. Returns count sent."""
+    cur.execute("""
+        SELECT m.id, m.score, u.name, u.email, j.title
+          FROM matches m
+          JOIN "User" u ON u.id = m.user_id
+          JOIN "Job"  j ON j.id = m.job_id
+         WHERE m.job_id = %s AND (m.score)::float >= %s AND m.status = 'pending'
+         ORDER BY m.score DESC
+    """, (job_id, NOTIFY_THRESHOLD))
+
+    matches_to_notify = cur.fetchall()
+    sent_count = 0
+    logger.info("Sending %d match notifications for job %s", len(matches_to_notify), job_id)
+
+    for match_id, score, user_name, user_email, job_title in matches_to_notify:
+        if not user_email:
+            continue
+
+        apply_token = str(uuid.uuid4())
+        apply_link = f"{FRONTEND_URL}/apply/{apply_token}"
+
+        context = {
+            "applicant_name": user_name or "Candidato",
+            "job_title": job_title,
+            "score": f"{float(score) * 100:.0f}%",
+            "apply_link": apply_link,
+        }
+
+        try:
+            send_match_notification(user_email, context)
+            cur.execute(
+                "UPDATE matches SET apply_token=%s, status='sent', sent_at=NOW() WHERE id=%s",
+                (apply_token, match_id),
+            )
+            cur.execute("""
+                INSERT INTO apply_tokens (token, job_id, applicant_id, expires_at, used)
+                VALUES (%s, %s, (SELECT user_id FROM matches WHERE id=%s), NOW() + INTERVAL '30 days', FALSE)
+                ON CONFLICT(token) DO NOTHING
+            """, (apply_token, job_id, match_id))
+            conn.commit()
+            sent_count += 1
+        except Exception as e:
+            logger.error("Error notifying match %s: %s", match_id, e)
+            cur.execute(
+                "UPDATE matches SET status='error', error_msg=%s WHERE id=%s",
+                (str(e)[:250], match_id),
+            )
+            conn.commit()
+
+    return sent_count
+
+
 # ═══════════ Matching: New User Registered ═══════════
 
 def run_matching_for_user(user_id: int) -> None:
-    """Pre-calculate match scores for a new user against all jobs."""
+    """Pre-calculate match scores for a new user against all jobs (no emails sent)."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -224,9 +239,11 @@ def run_matching_for_user(user_id: int) -> None:
 @router.get("/admin", dependencies=[Depends(get_current_admin)], response_model=List[MatchItem], summary="List matches")
 def list_matchings(
     min_score: float = Query(MATCH_THRESHOLD, ge=0, le=1, description="Minimum score filter"),
-    rubro: str = Query(None, description="Filter by rubro"),
+    rubro: Optional[str] = Query(None, description="Filter by rubro"),
+    job_id: Optional[int] = Query(None, description="Filter by job ID"),
+    only_pending: bool = Query(False, description="Only show unsent matches"),
 ):
-    """List matches sorted by score (highest first)."""
+    """List matches sorted by score (highest first). Admin can see ALL matches including free jobs."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -234,18 +251,25 @@ def list_matchings(
 
         query = """
             SELECT m.id, m.score, m.sent_at, m.status,
-                   json_build_object('id', j.id, 'title', j.title, 'rubro', j.rubro) AS job,
-                   json_build_object('id', u.id, 'email', u.email, 'name', u.name, 'rubro', u.rubro) AS "user"
+                   json_build_object('id', j.id, 'title', j.title, 'rubro', j.rubro, 'is_paid', j.is_paid) AS job,
+                   json_build_object('id', u.id, 'email', u.email, 'name', u.name, 'rubro', u.rubro, 'phone', u.phone) AS "user"
               FROM matches m
               JOIN "Job"  j ON j.id = m.job_id
               JOIN "User" u ON u.id = m.user_id
              WHERE (m.score)::float >= %s
         """
-        params = [min_score]
+        params: list = [min_score]
 
         if rubro:
-            query += ' AND (u.rubro = %s OR j.rubro = %s)'
+            query += " AND (u.rubro = %s OR j.rubro = %s)"
             params.extend([rubro, rubro])
+
+        if job_id:
+            query += " AND m.job_id = %s"
+            params.append(job_id)
+
+        if only_pending:
+            query += " AND m.status = 'pending'"
 
         query += " ORDER BY m.score DESC, m.id DESC"
         cur.execute(query, params)
@@ -257,7 +281,6 @@ def list_matchings(
 
 @router.get("/rubros", dependencies=[Depends(get_current_admin)], summary="List available rubros")
 def list_rubros():
-    """Get all rubros from users and jobs for filtering."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -270,6 +293,43 @@ def list_rubros():
             ) rubros ORDER BY rubro
         """)
         return [row[0] for row in cur.fetchall()]
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@router.post("/send-notifications/{job_id}", dependencies=[Depends(get_current_admin)], summary="Admin: send match emails for a job")
+def admin_send_notifications(job_id: int):
+    """
+    Admin manually triggers match notification emails for a specific job.
+    Works for both free and paid jobs. Only sends to pending (unsent) matches.
+    """
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify job exists
+        cur.execute('SELECT title, is_paid FROM "Job" WHERE id = %s', (job_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, "Oferta no encontrada")
+
+        job_title, is_paid = row
+        sent_count = _send_match_notifications(conn, cur, job_id)
+
+        return {
+            "message": f"Se enviaron {sent_count} notificaciones para '{job_title}'",
+            "sent": sent_count,
+            "job_id": job_id,
+            "is_paid": is_paid,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn: conn.rollback()
+        logger.exception("Error sending notifications for job %s", job_id)
+        raise HTTPException(500, "Error enviando notificaciones")
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -295,8 +355,10 @@ def resend_matching(match_id: int):
         score, token, user_name, user_email, job_title = row
         if not user_email:
             raise HTTPException(status_code=400, detail="El candidato no tiene email registrado")
+
+        # Generate new token if doesn't have one
         if not token:
-            raise HTTPException(status_code=400, detail="Este match no tiene token de aplicacion")
+            token = str(uuid.uuid4())
 
         apply_link = f"{FRONTEND_URL}/apply/{token}"
         context = {
@@ -308,17 +370,19 @@ def resend_matching(match_id: int):
 
         send_match_notification(user_email, context)
 
-        cur.execute("UPDATE matches SET sent_at=NOW(), status='resent' WHERE id=%s", (match_id,))
+        cur.execute(
+            "UPDATE matches SET apply_token=%s, sent_at=NOW(), status='sent' WHERE id=%s",
+            (token, match_id),
+        )
         conn.commit()
-        return {"message": "Notificacion de matching reenviada exitosamente."}
+        return {"message": "Notificacion reenviada exitosamente"}
 
     except HTTPException:
         raise
     except Exception as e:
-        if conn:
-            conn.rollback()
+        if conn: conn.rollback()
         logger.exception("Error resending match %s", match_id)
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail="Error interno")
     finally:
         if cur: cur.close()
         if conn: conn.close()
