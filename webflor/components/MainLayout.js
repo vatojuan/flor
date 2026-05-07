@@ -105,16 +105,21 @@ export default function MainLayout({ children }) {
           <Button component={Link} href="/contacto" color="inherit">
             Contacto
           </Button>
-          <Button component={Link} href="/servicios/busqueda" color="inherit"
-            sx={{ fontWeight: 600 }}>
-            Necesito Personal
+          <Button
+            variant="outlined"
+            color="inherit"
+            component={Link}
+            href="/cv/upload"
+          >
+            Subir CV
           </Button>
           <Button
             variant="outlined"
             color="inherit"
-            onClick={() => (window.location.href = "https://fapmendoza.online/cv/upload")}
+            component={Link}
+            href="/servicios/busqueda"
           >
-            Subir CV
+            Necesito Personal
           </Button>
           
           {/* 3. Lógica de sesión centralizada en el Layout */}
