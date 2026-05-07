@@ -105,6 +105,10 @@ export default function MainLayout({ children }) {
           <Button component={Link} href="/contacto" color="inherit">
             Contacto
           </Button>
+          <Button component={Link} href="/servicios/busqueda" color="inherit"
+            sx={{ fontWeight: 600 }}>
+            Necesito Personal
+          </Button>
           <Button
             variant="outlined"
             color="inherit"

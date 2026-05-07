@@ -20,6 +20,9 @@ export default function Footer() {
           © {new Date().getFullYear()} Fap Mendoza. Todos los derechos reservados.
         </Typography>
         <Box sx={{ mt: 1 }}>
+          <Link href="/servicios/busqueda" sx={{ mx: 2, color: "primary.main", textDecoration: "none" }}>
+            Necesito Personal
+          </Link>
           <Link href="/contacto" sx={{ mx: 2, color: "primary.main", textDecoration: "none" }}>
             Contacto
           </Link>

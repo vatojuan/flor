@@ -28,6 +28,7 @@ import WorkIcon from "@mui/icons-material/Work";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import PersonIcon from "@mui/icons-material/Person";
+import SearchIcon from "@mui/icons-material/Search";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 const API_BASE =
@@ -141,6 +142,11 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       label: "Actualizar Perfil",
       href: "/profile-empleador",
       icon: <PersonIcon sx={{ fontSize: 40 }} />,
+    },
+    {
+      label: "Buscar Personal",
+      href: "/servicios/busqueda",
+      icon: <SearchIcon sx={{ fontSize: 40 }} />,
     },
   ];
 
