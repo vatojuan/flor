@@ -38,9 +38,13 @@ function MyApp({ Component, pageProps }) {
       },
       typography: {
         fontFamily: "'Bodoni Moda', serif",
-        h1: { fontWeight: 700, fontSize: '2.4rem' },
-        h2: { fontWeight: 600, fontSize: '2rem' },
-        body1: { fontSize: '1rem', lineHeight: 1.6 },
+        h1: { fontWeight: 700, fontSize: '3rem', letterSpacing: '-0.02em', lineHeight: 1.2 },
+        h2: { fontWeight: 600, fontSize: '2.4rem', letterSpacing: '-0.01em', lineHeight: 1.3 },
+        h3: { fontWeight: 600, fontSize: '1.8rem', lineHeight: 1.35 },
+        h6: { fontWeight: 500, fontSize: '1.15rem' },
+        body1: { fontSize: '1.125rem', lineHeight: 1.75 },
+        body2: { fontSize: '1rem', lineHeight: 1.7 },
+        button: { textTransform: 'none', fontWeight: 600, letterSpacing: '0.02em' },
       },
     })
   , [mode]);

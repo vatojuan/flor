@@ -24,18 +24,24 @@ import useAdminAuth from "../../hooks/useAdminAuth";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function StatCard({ icon, value, label, accentColor }) {
-  const theme = useTheme();
   return (
     <Card
-      elevation={2}
+      elevation={0}
       sx={{
         height: "100%",
-        borderTop: `4px solid ${accentColor}`,
-        transition: "box-shadow 0.2s",
-        "&:hover": { boxShadow: theme.shadows[6] },
+        borderRadius: 3,
+        backgroundColor: "rgba(16, 59, 64, 0.5)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(8px)",
+        transition: "all 0.25s ease",
+        "&:hover": {
+          backgroundColor: "rgba(16, 59, 64, 0.7)",
+          transform: "translateY(-3px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+        },
       }}
     >
-      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
+      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2.5, py: 3 }}>
         <Box
           sx={{
             display: "flex",
@@ -43,19 +49,20 @@ function StatCard({ icon, value, label, accentColor }) {
             justifyContent: "center",
             width: 56,
             height: 56,
-            borderRadius: 2,
-            backgroundColor: `${accentColor}18`,
+            borderRadius: "14px",
+            backgroundColor: `${accentColor}20`,
             color: accentColor,
             flexShrink: 0,
+            transition: "transform 0.2s ease",
           }}
         >
           {icon}
         </Box>
         <Box>
-          <Typography variant="h4" fontWeight={700}>
-            {value !== null ? value : <CircularProgress size={24} />}
+          <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFF" }}>
+            {value !== null ? value : <CircularProgress size={24} sx={{ color: "#D96236" }} />}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
             {label}
           </Typography>
         </Box>
@@ -115,25 +122,25 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
       icon: <PeopleIcon sx={{ fontSize: 32 }} />,
       value: stats.users,
       label: "Usuarios",
-      accentColor: theme.palette.primary.main,
+      accentColor: "#D96236",
     },
     {
       icon: <WorkIcon sx={{ fontSize: 32 }} />,
       value: stats.offers,
       label: "Ofertas Laborales",
-      accentColor: theme.palette.secondary.main,
+      accentColor: "#26A69A",
     },
     {
       icon: <CompareArrowsIcon sx={{ fontSize: 32 }} />,
       value: stats.matchings,
       label: "Matchings",
-      accentColor: theme.palette.success?.main || "#2e7d32",
+      accentColor: "#66BB6A",
     },
     {
       icon: <EmailIcon sx={{ fontSize: 32 }} />,
       value: stats.emails,
       label: "E-mails",
-      accentColor: theme.palette.warning?.main || "#ed6c02",
+      accentColor: "#FFB300",
     },
   ];
 
@@ -146,10 +153,10 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
   return (
     <DashboardLayout toggleDarkMode={toggleDarkMode} currentMode={currentMode}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFF" }} gutterBottom>
           Dashboard Administrativo
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)" }}>
           Resumen general de la plataforma FAP RRHH
         </Typography>
       </Box>
@@ -160,7 +167,7 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
         </Alert>
       )}
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 5 }}>
         {statCards.map((card) => (
           <Grid item xs={12} sm={6} md={3} key={card.label}>
             <StatCard {...card} />
@@ -169,7 +176,7 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
       </Grid>
 
       <Box>
-        <Typography variant="h6" fontWeight={600} gutterBottom>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: "#FFF", mb: 2 }}>
           Acciones Rápidas
         </Typography>
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -180,15 +187,20 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
               startIcon={action.icon}
               onClick={() => router.push(action.href)}
               sx={{
-                textTransform: "none",
-                borderRadius: 2,
+                borderRadius: "12px",
                 px: 3,
                 py: 1.2,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
+                borderColor: "rgba(255,255,255,0.2)",
+                color: "rgba(255,255,255,0.8)",
+                fontWeight: 600,
+                borderWidth: "2px",
+                transition: "all 0.25s ease",
                 "&:hover": {
-                  borderColor: theme.palette.primary.main,
-                  backgroundColor: `${theme.palette.primary.main}0A`,
+                  borderColor: "#D96236",
+                  color: "#D96236",
+                  backgroundColor: "rgba(217, 98, 54, 0.08)",
+                  borderWidth: "2px",
+                  transform: "translateY(-1px)",
                 },
               }}
             >

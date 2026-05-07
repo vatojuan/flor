@@ -14,6 +14,7 @@ import {
   Popover,
   Typography,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import EditIcon from "@mui/icons-material/Edit";
@@ -72,7 +73,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   alignItems: "center",
   justifyContent: "space-between",
   padding: theme.spacing(0, 1),
-  ...theme.mixins.toolbar,
+  minHeight: 72,
 }));
 
 const Drawer = styled(MuiDrawer, {
@@ -84,8 +85,9 @@ const Drawer = styled(MuiDrawer, {
   position: "fixed",
   height: "100vh",
   "& .MuiDrawer-paper": {
-    backgroundColor: drawerbg,
+    background: drawerbg,
     color: "#fff",
+    borderRight: "1px solid rgba(255,255,255,0.06)",
     ...(open ? openedMixin(theme) : closedMixin(theme)),
   },
 }));
@@ -107,6 +109,7 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })(
 export default function DashboardLayout({ children, toggleDarkMode, currentMode }) {
   const theme = useTheme();
   const router = useRouter();
+  const isDark = theme.palette.mode === "dark";
 
   const [open, setOpen] = useState(() => {
     if (typeof window !== "undefined") {
@@ -157,14 +160,12 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
     }
   }, [API_URL]);
 
-  // Fetch on mount and every 60s
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // Persist read IDs
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("notif_read_ids", JSON.stringify(readIds));
@@ -181,7 +182,6 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
 
   const markAsRead = (id) => {
     setReadIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    // Fire-and-forget PATCH (for future server-side tracking)
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
     if (token) {
       fetch(`${API_URL}/api/notifications/${id}/read`, {
@@ -216,12 +216,17 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
     return `hace ${days}d`;
   };
 
-  const drawerBg = theme.palette.mode === "dark" ? (theme.palette.secondary.dark || "#1a2e30") : theme.palette.primary.main;
-  const appBarBg = theme.palette.mode === "dark" ? theme.palette.background.paper : theme.palette.primary.dark;
+  // Colores alineados con la marca (teal oscuro)
+  const drawerBg = isDark
+    ? "linear-gradient(180deg, #0B2A2D 0%, #0D3236 100%)"
+    : "linear-gradient(180deg, #0B2A2D 0%, #103B40 100%)";
+  const appBarBg = isDark
+    ? "rgba(11, 42, 45, 0.85)"
+    : "rgba(16, 59, 64, 0.9)";
 
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, href: "/admin/dashboard" },
-    { text: "Formación", icon: <SchoolIcon />, href: "/admin/gestion-cursos" }, // <-- 2. AÑADE LA NUEVA LÍNEA AQUÍ
+    { text: "Formación", icon: <SchoolIcon />, href: "/admin/gestion-cursos" },
     { text: "Editar BD", icon: <EditIcon />, href: "/admin/editar_db" },
     { text: "Agregar CV", icon: <NoteAddIcon />, href: "/admin/agregar_cv" },
     { text: "Agregar oferta", icon: <LocalOfferIcon />, href: "/admin/agregar_oferta" },
@@ -239,78 +244,91 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
   ];
 
   return (
-    <Box sx={{ display: "flex", backgroundColor: theme.palette.background.default }}>
+    <Box sx={{ display: "flex", backgroundColor: isDark ? "#0A1F22" : "#0E3339" }}>
       <Drawer variant="permanent" open={open} drawerbg={drawerBg}>
-        <DrawerHeader>
+        <DrawerHeader sx={{ px: 2 }}>
           {open && (
             <Link href="/" passHref>
-              <a style={{ textDecoration: "none" }}>
-                <Image
-                  src={
-                    theme.palette.mode === "dark"
-                      ? "/images/Fap rrhh-marca-naranja(chico).png"
-                      : "/images/Fap rrhh-marca-blanca(chico).png"
-                  }
-                  alt="Logo"
-                  width={200}
-                  height={90}
-                  priority
-                />
-              </a>
+              <Image
+                src="/images/Fap rrhh-marca-blanca(chico).png"
+                alt="Logo"
+                width={180}
+                height={80}
+                priority
+                style={{ objectFit: "contain" }}
+              />
             </Link>
           )}
-          <IconButton onClick={handleDrawerToggle} sx={{ color: "#fff" }}>
+          <IconButton
+            onClick={handleDrawerToggle}
+            sx={{
+              color: "rgba(255,255,255,0.7)",
+              transition: "all 0.2s ease",
+              "&:hover": { color: "#D96236", backgroundColor: "rgba(217,98,54,0.1)" },
+            }}
+          >
             {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
           </IconButton>
         </DrawerHeader>
-        <Divider sx={{ bgcolor: "rgba(255,255,255,0.3)" }} />
-        <List>
+        <Divider sx={{ bgcolor: "rgba(255,255,255,0.08)", mx: 1 }} />
+        <List sx={{ px: 1, mt: 1, overflowY: "auto" }}>
           {menuItems.map((item, index) => {
             const isActive = router.pathname === item.href;
-            const isLastMain = index === menuItems.length - 2; // divider before last item (Configuraciones)
+            const isLastMain = index === menuItems.length - 2;
             return (
               <React.Fragment key={item.text}>
-                <Link href={item.href} passHref>
-                  <a style={{ textDecoration: "none", color: "inherit" }}>
-                    <ListItem
-                      button
-                      selected={isActive}
+                <Tooltip title={!open ? item.text : ""} placement="right" arrow>
+                  <ListItem
+                    button
+                    component={Link}
+                    href={item.href}
+                    selected={isActive}
+                    sx={{
+                      borderRadius: "10px",
+                      mb: 0.3,
+                      py: 0.9,
+                      pl: open ? 2 : 1.5,
+                      borderLeft: isActive
+                        ? "3px solid #D96236"
+                        : "3px solid transparent",
+                      backgroundColor: isActive
+                        ? "rgba(217, 98, 54, 0.15)"
+                        : "transparent",
+                      "&.Mui-selected": {
+                        backgroundColor: "rgba(217, 98, 54, 0.15)",
+                      },
+                      "&:hover": {
+                        backgroundColor: "rgba(217, 98, 54, 0.1)",
+                        "& .MuiListItemIcon-root": { color: "#D96236" },
+                      },
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <ListItemIcon
                       sx={{
-                        borderLeft: isActive ? `3px solid ${theme.palette.warning?.main || '#e87200'}` : "3px solid transparent",
-                        backgroundColor: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-                        "&.Mui-selected": {
-                          backgroundColor: "rgba(255,255,255,0.12)",
-                        },
-                        "&:hover": {
-                          backgroundColor: "rgba(255,255,255,0.08)",
-                        },
+                        color: isActive ? "#D96236" : "rgba(255,255,255,0.6)",
+                        minWidth: 0,
+                        mr: open ? 2 : "auto",
+                        justifyContent: "center",
+                        transition: "color 0.2s ease",
                       }}
                     >
-                      <ListItemIcon
-                        sx={{
-                          color: isActive ? (theme.palette.warning?.main || '#e87200') : "#fff",
-                          minWidth: 0,
-                          mr: open ? 2 : "auto",
-                          justifyContent: "center",
+                      {item.icon}
+                    </ListItemIcon>
+                    {open && (
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          color: isActive ? "#FFF" : "rgba(255,255,255,0.8)",
+                          fontWeight: isActive ? 600 : 400,
+                          fontSize: "0.9rem",
                         }}
-                      >
-                        {item.icon}
-                      </ListItemIcon>
-                      {open && (
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{
-                            color: "#fff",
-                            fontWeight: isActive ? 600 : 400,
-                            sx: { textDecoration: "none" },
-                          }}
-                        />
-                      )}
-                    </ListItem>
-                  </a>
-                </Link>
+                      />
+                    )}
+                  </ListItem>
+                </Tooltip>
                 {isLastMain && (
-                  <Divider sx={{ my: 1, bgcolor: "rgba(255,255,255,0.15)" }} />
+                  <Divider sx={{ my: 1, bgcolor: "rgba(255,255,255,0.08)", mx: 1 }} />
                 )}
               </React.Fragment>
             );
@@ -319,65 +337,111 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
       </Drawer>
 
       <Main open={open}>
-        <AppBar position="static" sx={{ backgroundColor: appBarBg }}>
-          <Toolbar>
+        <AppBar
+          position="static"
+          sx={{
+            backgroundColor: appBarBg,
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.06)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <Toolbar sx={{ minHeight: 64 }}>
             {!open && (
               <Link href="/" passHref>
-                <a style={{ textDecoration: "none" }}>
-                  <Image
-                    src={
-                      theme.palette.mode === "dark"
-                        ? "/images/Fap-marca-naranja(chico).png"
-                        : "/images/Fap-marca-blanca(chico).png"
-                    }
-                    alt="Logo AppBar"
-                    width={100}
-                    height={50}
-                    priority
-                  />
-                </a>
+                <Image
+                  src="/images/Fap-marca-blanca(chico).png"
+                  alt="Logo AppBar"
+                  width={90}
+                  height={45}
+                  priority
+                  style={{ objectFit: "contain" }}
+                />
               </Link>
             )}
             <Box sx={{ flexGrow: 1 }} />
-            <IconButton
-              onClick={() => { localStorage.removeItem("adminToken"); router.push("/admin/login"); }}
-              sx={{ color: "#fff", mr: 1 }}
-              title="Cerrar sesion"
-            >
-              <LogoutIcon />
-            </IconButton>
-            <IconButton onClick={handleNotifOpen} sx={{ color: "#fff", mr: 2 }}>
-              <Badge badgeContent={unreadCount} color="error" max={99}>
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
+
+            {/* Logout */}
+            <Tooltip title="Cerrar sesión" arrow>
+              <IconButton
+                onClick={() => { localStorage.removeItem("adminToken"); router.push("/admin/login"); }}
+                sx={{
+                  color: "rgba(255,255,255,0.6)",
+                  mr: 1,
+                  transition: "all 0.2s ease",
+                  "&:hover": { color: "#ef5350", backgroundColor: "rgba(239,83,80,0.08)" },
+                }}
+              >
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
+
+            {/* Notifications */}
+            <Tooltip title="Notificaciones" arrow>
+              <IconButton
+                onClick={handleNotifOpen}
+                sx={{
+                  color: "rgba(255,255,255,0.7)",
+                  mr: 1,
+                  transition: "all 0.2s ease",
+                  "&:hover": { color: "#D96236", backgroundColor: "rgba(217,98,54,0.1)" },
+                }}
+              >
+                <Badge
+                  badgeContent={unreadCount}
+                  color="error"
+                  max={99}
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      boxShadow: "0 2px 8px rgba(239,83,80,0.4)",
+                    },
+                  }}
+                >
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+
             <Popover
               open={Boolean(notifAnchor)}
               anchorEl={notifAnchor}
               onClose={handleNotifClose}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
-              PaperProps={{ sx: { width: 380, maxHeight: 480 } }}
+              PaperProps={{
+                sx: {
+                  width: 380,
+                  maxHeight: 480,
+                  mt: 1,
+                  borderRadius: "12px",
+                  backgroundColor: isDark ? "rgba(11,42,45,0.97)" : "rgba(16,59,64,0.97)",
+                  backdropFilter: "blur(16px)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                  color: "#FFF",
+                },
+              }}
             >
-              <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
+              <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
                 <Typography variant="subtitle1" fontWeight={600}>Notificaciones</Typography>
                 {unreadCount > 0 && (
                   <Typography
                     variant="caption"
-                    sx={{ cursor: "pointer", color: "primary.main", "&:hover": { textDecoration: "underline" } }}
+                    sx={{ cursor: "pointer", color: "#D96236", "&:hover": { textDecoration: "underline" } }}
                     onClick={markAllRead}
                   >
-                    Marcar todo leido
+                    Marcar todo leído
                   </Typography>
                 )}
               </Box>
               {notifLoading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                  <CircularProgress size={28} />
+                  <CircularProgress size={28} sx={{ color: "#D96236" }} />
                 </Box>
               ) : notifications.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: "center" }}>
-                  <Typography variant="body2" color="text.secondary">Sin notificaciones</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>Sin notificaciones</Typography>
                 </Box>
               ) : (
                 <List dense sx={{ p: 0 }}>
@@ -389,15 +453,14 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
                         button
                         onClick={() => markAsRead(n.id)}
                         sx={{
-                          backgroundColor: isRead ? "transparent" : "action.hover",
-                          "&:hover": { backgroundColor: "action.selected" },
+                          backgroundColor: isRead ? "transparent" : "rgba(217,98,54,0.08)",
+                          "&:hover": { backgroundColor: "rgba(217,98,54,0.12)" },
                           py: 1.2,
-                          borderBottom: "1px solid",
-                          borderColor: "divider",
+                          borderBottom: "1px solid rgba(255,255,255,0.06)",
                         }}
                       >
                         <ListItemIcon sx={{ minWidth: 36 }}>
-                          {isRead ? <CheckCircleIcon fontSize="small" color="disabled" /> : getNotifIcon(n.type)}
+                          {isRead ? <CheckCircleIcon fontSize="small" sx={{ color: "rgba(255,255,255,0.3)" }} /> : getNotifIcon(n.type)}
                         </ListItemIcon>
                         <ListItemText
                           primary={n.message}
@@ -405,9 +468,9 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
                           primaryTypographyProps={{
                             variant: "body2",
                             fontWeight: isRead ? 400 : 600,
-                            sx: { whiteSpace: "normal", lineHeight: 1.3 },
+                            sx: { whiteSpace: "normal", lineHeight: 1.3, color: "#FFF" },
                           }}
-                          secondaryTypographyProps={{ variant: "caption" }}
+                          secondaryTypographyProps={{ variant: "caption", sx: { color: "rgba(255,255,255,0.4)" } }}
                         />
                       </ListItem>
                     );
@@ -415,20 +478,24 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
                 </List>
               )}
             </Popover>
-            <IconButton onClick={toggleDarkMode ? toggleDarkMode : () => {}} sx={{ color: "#fff" }}>
-              {theme.palette.mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
+
+            {/* Dark mode toggle */}
+            <Tooltip title={isDark ? "Modo claro" : "Modo oscuro"} arrow>
+              <IconButton
+                onClick={toggleDarkMode ? toggleDarkMode : () => {}}
+                sx={{
+                  color: "rgba(255,255,255,0.7)",
+                  transition: "all 0.2s ease",
+                  "&:hover": { color: "#D96236", backgroundColor: "rgba(217,98,54,0.1)" },
+                }}
+              >
+                {isDark ? <Brightness7Icon /> : <Brightness4Icon />}
+              </IconButton>
+            </Tooltip>
           </Toolbar>
         </AppBar>
-        <Box sx={{ p: 3, flexGrow: 1 }}>{children}</Box>
+        <Box sx={{ p: { xs: 2, sm: 3 }, flexGrow: 1 }}>{children}</Box>
       </Main>
-
-      <style jsx global>{`
-        a {
-          text-decoration: none !important;
-          color: inherit !important;
-        }
-      `}</style>
     </Box>
   );
 }
