@@ -1,32 +1,35 @@
 // pages/job-list.js
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Grid,
-  Card,
-  CardContent,
-  CardActions,
   Typography,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Box,
-  Divider,
   Snackbar,
   Alert,
   CircularProgress,
+  TextField,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  InputAdornment,
+  Stack,
 } from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
+import SearchIcon from "@mui/icons-material/Search";
 import useAuthUser from "../hooks/useAuthUser";
+import useSnackbar from "../hooks/useSnackbar";
 import DashboardLayout from "../components/DashboardLayout";
+import JobCard from "../components/ui/JobCard";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import PageHeader from "../components/ui/PageHeader";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
 
 export default function JobList() {
-  /* ─── 1. Auth centralizada ─── */
+  /* ---- Auth ---- */
   const {
     user,
     role: userRole,
@@ -36,7 +39,7 @@ export default function JobList() {
   } = useAuthUser();
   const userId = user?.id || null;
 
-  /* ─── 1 b. token localStorage ─── */
+  /* ---- localStorage token fallback ---- */
   const [localToken, setLocalToken] = useState(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -50,22 +53,42 @@ export default function JobList() {
     [authToken]
   );
 
-  /* ─── 2. State ─── */
+  /* ---- State ---- */
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingApps, setLoadingApps] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const { snackbar, showSnackbar, closeSnackbar } = useSnackbar();
+
   const [dialogs, setDialogs] = useState({
     delete: { open: false, jobId: null },
     cancel: { open: false, jobId: null },
   });
 
-  /* ─── 3. Fetch ofertas ─── */
+  /* ---- Search / filter state ---- */
+  const [searchQuery, setSearchQuery] = useState("");
+  const [rubroFilter, setRubroFilter] = useState("");
+
+  /* ---- Derived: unique rubros for filter dropdown ---- */
+  const rubros = useMemo(() => {
+    const set = new Set(jobs.map((j) => j.rubro).filter(Boolean));
+    return Array.from(set).sort();
+  }, [jobs]);
+
+  /* ---- Filtered jobs ---- */
+  const filteredJobs = useMemo(() => {
+    let result = jobs;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((j) => j.title?.toLowerCase().includes(q));
+    }
+    if (rubroFilter) {
+      result = result.filter((j) => j.rubro === rubroFilter);
+    }
+    return result;
+  }, [jobs, searchQuery, rubroFilter]);
+
+  /* ---- Fetch jobs ---- */
   useEffect(() => {
     if (!ready) return;
 
@@ -87,13 +110,8 @@ export default function JobList() {
             (j) => !j.expirationDate || new Date(j.expirationDate) > now
           )
         );
-      } catch (err) {
-        console.error("[JobList] fetchJobs:", err);
-        setSnackbar({
-          open: true,
-          message: "Error cargando ofertas",
-          severity: "error",
-        });
+      } catch {
+        showSnackbar("Error cargando ofertas", "error");
       } finally {
         setLoadingJobs(false);
       }
@@ -102,7 +120,7 @@ export default function JobList() {
     fetchJobs();
   }, [ready, userRole, userId]);
 
-  /* ─── 4. Fetch postulaciones (empleado) ─── */
+  /* ---- Fetch applications (empleado) ---- */
   useEffect(() => {
     if (!ready) return;
     if (userRole !== "empleado" || !authToken) {
@@ -125,13 +143,8 @@ export default function JobList() {
           const { applications: apps } = await res.json();
           setApplications(apps);
         }
-      } catch (err) {
-        console.error("[JobList] fetchApps:", err);
-        setSnackbar({
-          open: true,
-          message: "Error cargando tus postulaciones",
-          severity: "error",
-        });
+      } catch {
+        showSnackbar("Error cargando tus postulaciones", "error");
       } finally {
         setLoadingApps(false);
       }
@@ -140,7 +153,7 @@ export default function JobList() {
     fetchApps();
   }, [ready, userRole, authToken, authHeader]);
 
-  /* ─── 5. Helpers ─── */
+  /* ---- Helpers ---- */
   const getApplicationForJob = (jobId) =>
     applications.find((a) => a.job.id === jobId);
 
@@ -153,14 +166,10 @@ export default function JobList() {
       )
     );
 
-  /* ─── 6. Postular ─── */
+  /* ---- Apply ---- */
   const handleApply = async (jobId) => {
     if (!authToken) {
-      setSnackbar({
-        open: true,
-        message: "Debes iniciar sesión para postular",
-        severity: "error",
-      });
+      showSnackbar("Debes iniciar sesion para postular", "error");
       return;
     }
     try {
@@ -171,11 +180,7 @@ export default function JobList() {
       });
       if (!res.ok) throw new Error((await res.json()).detail || res.status);
       bumpCount(jobId, 1);
-      setSnackbar({
-        open: true,
-        message: "Has postulado exitosamente",
-        severity: "success",
-      });
+      showSnackbar("Has postulado exitosamente", "success");
 
       const appsRes = await fetch(`${API_BASE}/api/job/my-applications`, {
         headers: { "Content-Type": "application/json", ...authHeader() },
@@ -184,17 +189,12 @@ export default function JobList() {
         const { applications: apps } = await appsRes.json();
         setApplications(apps);
       }
-    } catch (err) {
-      console.error("[JobList] apply:", err);
-      setSnackbar({
-        open: true,
-        message: "Error al postular",
-        severity: "error",
-      });
+    } catch {
+      showSnackbar("Error al postular", "error");
     }
   };
 
-  /* ─── 7. Cancelar postulación ─── */
+  /* ---- Cancel application ---- */
   const confirmCancel = async () => {
     const id = dialogs.cancel.jobId;
     try {
@@ -206,32 +206,19 @@ export default function JobList() {
       if (!res.ok) throw new Error(res.status);
       bumpCount(id, -1);
       setApplications((apps) => apps.filter((a) => a.job.id !== id));
-      setSnackbar({
-        open: true,
-        message: "Postulación cancelada",
-        severity: "success",
-      });
-    } catch (err) {
-      console.error("[JobList] cancel:", err);
-      setSnackbar({
-        open: true,
-        message: "Error al cancelar",
-        severity: "error",
-      });
+      showSnackbar("Postulacion cancelada", "success");
+    } catch {
+      showSnackbar("Error al cancelar", "error");
     } finally {
       setDialogs((d) => ({ ...d, cancel: { open: false, jobId: null } }));
     }
   };
 
-  /* ─── 8. Eliminar oferta (empleador) ─── */
+  /* ---- Delete job (empleador) ---- */
   const confirmDelete = async () => {
     const id = dialogs.delete.jobId;
     if (!authToken) {
-      setSnackbar({
-        open: true,
-        message: "No autorizado",
-        severity: "error",
-      });
+      showSnackbar("No autorizado", "error");
       setDialogs((d) => ({ ...d, delete: { open: false, jobId: null } }));
       return;
     }
@@ -240,29 +227,20 @@ export default function JobList() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader(), // ✅ Usa el token del usuario empleador
+          ...authHeader(),
         },
       });
       if (!res.ok) throw new Error(res.status);
       setJobs((prev) => prev.filter((j) => j.id !== id));
-      setSnackbar({
-        open: true,
-        message: "Oferta eliminada",
-        severity: "success",
-      });
-    } catch (err) {
-      console.error("[JobList] delete:", err);
-      setSnackbar({
-        open: true,
-        message: "Error al eliminar",
-        severity: "error",
-      });
+      showSnackbar("Oferta eliminada", "success");
+    } catch {
+      showSnackbar("Error al eliminar", "error");
     } finally {
       setDialogs((d) => ({ ...d, delete: { open: false, jobId: null } }));
     }
   };
 
-  /* ─── 9. Loader global ─── */
+  /* ---- Loading ---- */
   if (!ready) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
@@ -271,229 +249,187 @@ export default function JobList() {
     );
   }
 
-  /* ─── 10. Render ─── */
+  /* ---- Render ---- */
   return (
     <DashboardLayout>
-      <Box sx={{ textAlign: "center", mt: 4, px: 2 }}>
-        <Typography variant="h4" gutterBottom>
-          Listado de Ofertas
-        </Typography>
+      <Box sx={{ px: 2 }}>
+        <PageHeader
+          title="Listado de Ofertas"
+          subtitle={
+            userRole === "empleador"
+              ? "Gestiona tus ofertas publicadas"
+              : "Encuentra tu proximo empleo"
+          }
+          actions={
+            <Button component={Link} href="/dashboard" variant="outlined">
+              Volver al Dashboard
+            </Button>
+          }
+        />
 
+        {/* Search and filter bar */}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ maxWidth: 900, mx: "auto", mb: 3 }}
+        >
+          <TextField
+            placeholder="Buscar por titulo..."
+            size="small"
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Rubro</InputLabel>
+            <Select
+              value={rubroFilter}
+              label="Rubro"
+              onChange={(e) => setRubroFilter(e.target.value)}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {rubros.map((r) => (
+                <MenuItem key={r} value={r}>
+                  {r}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+
+        {/* Job grid */}
         {loadingJobs ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
             <CircularProgress />
           </Box>
-        ) : jobs.length === 0 ? (
-          <Typography>No hay ofertas publicadas.</Typography>
+        ) : filteredJobs.length === 0 ? (
+          <Typography sx={{ textAlign: "center", mt: 4 }} color="text.secondary">
+            {jobs.length === 0
+              ? "No hay ofertas publicadas."
+              : "No se encontraron ofertas con esos filtros."}
+          </Typography>
         ) : (
           <Grid
             container
             spacing={3}
-            sx={{ mx: "auto", width: { md: "900px" } }}
+            sx={{ maxWidth: 960, mx: "auto" }}
           >
-            {jobs.map((job) => {
+            {filteredJobs.map((job) => {
               const app = getApplicationForJob(job.id);
               const isCancelable =
                 app &&
                 ((app.label === "automatic" && app.status === "waiting") ||
                   (app.label === "manual" && app.status === "pending"));
 
-              /* Fecha de publicación: primer campo existente */
-              const publishedAt =
-                job.createdAt || job.created_at || job.jobPostedAt || null;
-
               return (
                 <Grid item xs={12} sm={6} md={4} key={job.id}>
-                  <Card
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      height: "100%",
-                    }}
-                  >
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6">{job.title}</Typography>
-
-                      {publishedAt && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mt: 1 }}
-                        >
-                          Publicado el:{" "}
-                          {new Date(publishedAt).toLocaleDateString()}
-                        </Typography>
-                      )}
-
-                      <Typography
-                        variant="body2"
-                        color="error"
-                        sx={{ mt: 0.5 }}
-                      >
-                        Expira:{" "}
-                        {job.expirationDate
-                          ? new Date(job.expirationDate).toLocaleDateString()
-                          : "Sin expiración"}
-                      </Typography>
-
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          mt: 1,
-                        }}
-                      >
-                        Candidatos postulados: {job.candidatesCount || 0}
-                        <PersonIcon fontSize="small" />
-                      </Typography>
-                    </CardContent>
-
-                    <CardActions sx={{ justifyContent: "space-between", p: 2 }}>
-                      <Button
-                        component={Link}
-                        href={`/job-offer?id=${job.id}`}
-                        size="small"
-                      >
-                        Ver Detalles
-                      </Button>
-
-                      {userRole === "empleador" ? (
+                  <JobCard
+                    job={job}
+                    actions={
+                      <>
                         <Button
+                          component={Link}
+                          href={`/job-offer?id=${job.id}`}
                           size="small"
-                          variant="contained"
-                          color="secondary"
-                          onClick={() =>
-                            setDialogs((d) => ({
-                              ...d,
-                              delete: { open: true, jobId: job.id },
-                            }))
-                          }
                         >
-                          Eliminar
+                          Ver Detalles
                         </Button>
-                      ) : !app ? (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleApply(job.id)}
-                        >
-                          Postularme
-                        </Button>
-                      ) : isCancelable ? (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="secondary"
-                          onClick={() =>
-                            setDialogs((d) => ({
-                              ...d,
-                              cancel: { open: true, jobId: job.id },
-                            }))
-                          }
-                        >
-                          Cancelar Postulación
-                        </Button>
-                      ) : (
-                        <Button size="small" variant="outlined" disabled>
-                          Propuesta enviada
-                        </Button>
-                      )}
-                    </CardActions>
-                  </Card>
+
+                        {userRole === "empleador" ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            onClick={() =>
+                              setDialogs((d) => ({
+                                ...d,
+                                delete: { open: true, jobId: job.id },
+                              }))
+                            }
+                          >
+                            Eliminar
+                          </Button>
+                        ) : !app ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            onClick={() => handleApply(job.id)}
+                          >
+                            Postularme
+                          </Button>
+                        ) : isCancelable ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="secondary"
+                            onClick={() =>
+                              setDialogs((d) => ({
+                                ...d,
+                                cancel: { open: true, jobId: job.id },
+                              }))
+                            }
+                          >
+                            Cancelar
+                          </Button>
+                        ) : (
+                          <Button size="small" variant="outlined" disabled>
+                            Propuesta enviada
+                          </Button>
+                        )}
+                      </>
+                    }
+                  />
                 </Grid>
               );
             })}
           </Grid>
         )}
-
-        <Divider sx={{ my: 3 }} />
-
-        <Box sx={{ textAlign: "center" }}>
-          <Button component={Link} href="/dashboard" variant="contained">
-            Volver al Dashboard
-          </Button>
-        </Box>
       </Box>
 
-      {/* ─── Diálogo cancelar ─── */}
-      <Dialog
+      {/* Cancel application dialog */}
+      <ConfirmDialog
         open={dialogs.cancel.open}
-        onClose={() =>
+        title="Confirmar Cancelacion"
+        message="Deseas cancelar tu postulacion a este empleo?"
+        confirmLabel="Confirmar"
+        cancelLabel="Volver"
+        onConfirm={confirmCancel}
+        onCancel={() =>
           setDialogs((d) => ({ ...d, cancel: { open: false, jobId: null } }))
         }
-      >
-        <DialogTitle>Confirmar Cancelación</DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Deseas cancelar tu postulación a este empleo?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setDialogs((d) => ({
-                ...d,
-                cancel: { open: false, jobId: null },
-              }))
-            }
-          >
-            Volver
-          </Button>
-          <Button
-            onClick={confirmCancel}
-            color="secondary"
-            variant="contained"
-          >
-            Confirmar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
 
-      {/* ─── Diálogo eliminar ─── */}
-      <Dialog
+      {/* Delete job dialog */}
+      <ConfirmDialog
         open={dialogs.delete.open}
-        onClose={() =>
+        title="Confirmar Eliminacion"
+        message="Seguro que deseas eliminar esta oferta?"
+        confirmLabel="Eliminar"
+        cancelLabel="Volver"
+        severity="error"
+        onConfirm={confirmDelete}
+        onCancel={() =>
           setDialogs((d) => ({ ...d, delete: { open: false, jobId: null } }))
         }
-      >
-        <DialogTitle>Confirmar Eliminación</DialogTitle>
-        <DialogContent>
-          <Typography>¿Seguro que deseas eliminar esta oferta?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setDialogs((d) => ({
-                ...d,
-                delete: { open: false, jobId: null },
-              }))
-            }
-          >
-            Volver
-          </Button>
-          <Button
-            onClick={confirmDelete}
-            color="secondary"
-            variant="contained"
-          >
-            Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
 
-      {/* ─── Snackbar ─── */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          onClose={closeSnackbar}
           severity={snackbar.severity}
           variant="filled"
           sx={{ width: "100%" }}

@@ -110,8 +110,8 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
 
   const handleDrawerToggle = () => setOpen((prev) => !prev);
 
-  const drawerBg = theme.palette.mode === "dark" ? "#4E342E" : theme.palette.primary.main;
-  const appBarBg = theme.palette.mode === "dark" ? "#3E2723" : theme.palette.primary.dark;
+  const drawerBg = theme.palette.mode === "dark" ? (theme.palette.secondary.dark || "#1a2e30") : theme.palette.primary.main;
+  const appBarBg = theme.palette.mode === "dark" ? theme.palette.background.paper : theme.palette.primary.dark;
 
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, href: "/admin/dashboard" },
@@ -136,7 +136,7 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
               <a style={{ textDecoration: "none" }}>
                 <Image
                   src={
-                    drawerBg === "#4E342E"
+                    theme.palette.mode === "dark"
                       ? "/images/Fap rrhh-marca-naranja(chico).png"
                       : "/images/Fap rrhh-marca-blanca(chico).png"
                   }
@@ -154,37 +154,54 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
         </DrawerHeader>
         <Divider sx={{ bgcolor: "rgba(255,255,255,0.3)" }} />
         <List>
-          {menuItems.map((item) => {
+          {menuItems.map((item, index) => {
             const isActive = router.pathname === item.href;
+            const isLastMain = index === menuItems.length - 2; // divider before last item (Configuraciones)
             return (
-              <Link href={item.href} key={item.text} passHref>
-                <a style={{ textDecoration: "none", color: "inherit" }}>
-                  <ListItem
-                    button
-                    selected={isActive}
-                    sx={{
-                      "&.Mui-selected": { backgroundColor: theme.palette.action.selected },
-                    }}
-                  >
-                    <ListItemIcon
+              <React.Fragment key={item.text}>
+                <Link href={item.href} passHref>
+                  <a style={{ textDecoration: "none", color: "inherit" }}>
+                    <ListItem
+                      button
+                      selected={isActive}
                       sx={{
-                        color: "#fff",
-                        minWidth: 0,
-                        mr: open ? 2 : "auto",
-                        justifyContent: "center",
+                        borderLeft: isActive ? `3px solid ${theme.palette.warning?.main || '#e87200'}` : "3px solid transparent",
+                        backgroundColor: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                        "&.Mui-selected": {
+                          backgroundColor: "rgba(255,255,255,0.12)",
+                        },
+                        "&:hover": {
+                          backgroundColor: "rgba(255,255,255,0.08)",
+                        },
                       }}
                     >
-                      {item.icon}
-                    </ListItemIcon>
-                    {open && (
-                      <ListItemText
-                        primary={item.text}
-                        primaryTypographyProps={{ color: "#fff", sx: { textDecoration: "none" } }}
-                      />
-                    )}
-                  </ListItem>
-                </a>
-              </Link>
+                      <ListItemIcon
+                        sx={{
+                          color: isActive ? (theme.palette.warning?.main || '#e87200') : "#fff",
+                          minWidth: 0,
+                          mr: open ? 2 : "auto",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {item.icon}
+                      </ListItemIcon>
+                      {open && (
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{
+                            color: "#fff",
+                            fontWeight: isActive ? 600 : 400,
+                            sx: { textDecoration: "none" },
+                          }}
+                        />
+                      )}
+                    </ListItem>
+                  </a>
+                </Link>
+                {isLastMain && (
+                  <Divider sx={{ my: 1, bgcolor: "rgba(255,255,255,0.15)" }} />
+                )}
+              </React.Fragment>
             );
           })}
         </List>

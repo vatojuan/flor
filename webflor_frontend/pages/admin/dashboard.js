@@ -1,113 +1,201 @@
-import React from "react";
-import { Box, Card, CardContent, Typography, Grid, Accordion, AccordionSummary, AccordionDetails, List, ListItem } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Button,
+  CircularProgress,
+  Alert,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import PeopleIcon from "@mui/icons-material/People";
+import WorkIcon from "@mui/icons-material/Work";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import EmailIcon from "@mui/icons-material/Email";
+import NoteAddIcon from "@mui/icons-material/NoteAdd";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import { useRouter } from "next/router";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function StatCard({ icon, value, label, accentColor }) {
+  const theme = useTheme();
+  return (
+    <Card
+      elevation={2}
+      sx={{
+        height: "100%",
+        borderTop: `4px solid ${accentColor}`,
+        transition: "box-shadow 0.2s",
+        "&:hover": { boxShadow: theme.shadows[6] },
+      }}
+    >
+      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 56,
+            height: 56,
+            borderRadius: 2,
+            backgroundColor: `${accentColor}18`,
+            color: accentColor,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </Box>
+        <Box>
+          <Typography variant="h4" fontWeight={700}>
+            {value !== null ? value : <CircularProgress size={24} />}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {label}
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminDashboard({ toggleDarkMode, currentMode }) {
-  // Validar autenticación de administrador
   useAdminAuth();
 
-  // Datos de ejemplo para métricas y matchings (posteriormente se integrarán datos reales)
-  const metricsData = {
-    usuarios: 120,
-    postulaciones: 85,
-    ofertas: 40,
-    matchings: 30,
-    propuestas: 25,
-  };
+  const theme = useTheme();
+  const router = useRouter();
 
-  const matchingData = {
-    avanzadas: 5,
-    enProceso: 3,
-  };
+  const [stats, setStats] = useState({
+    users: null,
+    offers: null,
+    matchings: null,
+    emails: null,
+  });
+  const [error, setError] = useState(null);
 
-  // Datos de ejemplo para logs
-  const logsGroup1 = [
-    "Contacto: Juan Pérez - 2025-03-13 10:00",
-    "Avance propuesta: Propuesta A actualizada",
-    "Pago realizado: $200 - 2025-03-12",
-    "Petición especial: Cambio de horario",
-    "Integración API externa: Éxito",
-    "Seguro: Renovado",
-    "Entrevista con IA: Finalizada",
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const fetchStat = async (url, key) => {
+      try {
+        const res = await fetch(url, { headers });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        return { key, value: Array.isArray(data) ? data.length : 0 };
+      } catch {
+        return { key, value: 0 };
+      }
+    };
+
+    Promise.all([
+      fetchStat(`${API_URL}/admin/users`, "users"),
+      fetchStat(`${API_URL}/api/job/admin/offers`, "offers"),
+      fetchStat(`${API_URL}/api/match/admin`, "matchings"),
+    ])
+      .then((results) => {
+        const next = { ...stats };
+        results.forEach(({ key, value }) => {
+          next[key] = value;
+        });
+        setStats(next);
+      })
+      .catch(() => setError("Error al cargar estadísticas"));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const statCards = [
+    {
+      icon: <PeopleIcon sx={{ fontSize: 32 }} />,
+      value: stats.users,
+      label: "Usuarios",
+      accentColor: theme.palette.primary.main,
+    },
+    {
+      icon: <WorkIcon sx={{ fontSize: 32 }} />,
+      value: stats.offers,
+      label: "Ofertas Laborales",
+      accentColor: theme.palette.secondary.main,
+    },
+    {
+      icon: <CompareArrowsIcon sx={{ fontSize: 32 }} />,
+      value: stats.matchings,
+      label: "Matchings",
+      accentColor: theme.palette.success?.main || "#2e7d32",
+    },
+    {
+      icon: <EmailIcon sx={{ fontSize: 32 }} />,
+      value: stats.emails,
+      label: "E-mails",
+      accentColor: theme.palette.warning?.main || "#ed6c02",
+    },
   ];
 
-  const logsGroup2 = [
-    "Registro: María González",
-    "Postulación: Oferta X por Carlos",
-    "Nueva Oferta: Desarrollador React",
+  const quickActions = [
+    { label: "Agregar CV", icon: <NoteAddIcon />, href: "/admin/agregar_cv" },
+    { label: "Agregar Oferta", icon: <LocalOfferIcon />, href: "/admin/agregar_oferta" },
+    { label: "Ver Matchings", icon: <VisibilityIcon />, href: "/admin/matchins" },
   ];
 
   return (
     <DashboardLayout toggleDarkMode={toggleDarkMode} currentMode={currentMode}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
           Dashboard Administrativo
         </Typography>
-        <Typography variant="subtitle1" color="textSecondary">
-          Ruta protegida para administradores, bienvenido support@fapmendoza.com
+        <Typography variant="body1" color="text.secondary">
+          Resumen general de la plataforma FAP RRHH
         </Typography>
       </Box>
-      <Grid container spacing={3}>
-        {/* Tarjeta de datos de la base de datos */}
-        <Grid item xs={12} md={6}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Datos de la Base de Datos
-              </Typography>
-              <Typography variant="body1">Usuarios: {metricsData.usuarios}</Typography>
-              <Typography variant="body1">Postulaciones: {metricsData.postulaciones}</Typography>
-              <Typography variant="body1">Ofertas: {metricsData.ofertas}</Typography>
-              <Typography variant="body1">Matchings: {metricsData.matchings}</Typography>
-              <Typography variant="body1">Propuestas: {metricsData.propuestas}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        {/* Tarjeta de matchings en proceso */}
-        <Grid item xs={12} md={6}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Matchings en Proceso
-              </Typography>
-              <Typography variant="body1">Avanzadas: {matchingData.avanzadas}</Typography>
-              <Typography variant="body1">En Proceso: {matchingData.enProceso}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {statCards.map((card) => (
+          <Grid item xs={12} sm={6} md={3} key={card.label}>
+            <StatCard {...card} />
+          </Grid>
+        ))}
       </Grid>
-      {/* Secciones desplegables para logs */}
-      <Box sx={{ mt: 4 }}>
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="logs1-content" id="logs1-header">
-            <Typography variant="h6">Logs - Contactos, Avances, Pagos, Peticiones y Más</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {logsGroup1.map((log, index) => (
-                <ListItem key={index}>
-                  <Typography variant="body2">{log}</Typography>
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
-        <Accordion sx={{ mt: 2 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="logs2-content" id="logs2-header">
-            <Typography variant="h6">Logs - Registro, Postulaciones y Ofertas</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {logsGroup2.map((log, index) => (
-                <ListItem key={index}>
-                  <Typography variant="body2">{log}</Typography>
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
+
+      <Box>
+        <Typography variant="h6" fontWeight={600} gutterBottom>
+          Acciones Rápidas
+        </Typography>
+        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {quickActions.map((action) => (
+            <Button
+              key={action.label}
+              variant="outlined"
+              startIcon={action.icon}
+              onClick={() => router.push(action.href)}
+              sx={{
+                textTransform: "none",
+                borderRadius: 2,
+                px: 3,
+                py: 1.2,
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.primary,
+                "&:hover": {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: `${theme.palette.primary.main}0A`,
+                },
+              }}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Box>
       </Box>
     </DashboardLayout>
   );
