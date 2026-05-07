@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "FAP Mendoza",
+    "slug": "fap-mendoza",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "fapmendoza",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#103B40"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fapmendoza.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#103B40"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.fapmendoza.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-font"
+    ]
+  }
+}

@@ -36,7 +36,7 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import EmailIcon from "@mui/icons-material/Email";
 import SchoolIcon from "@mui/icons-material/School";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import SendIcon from "@mui/icons-material/Send";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
@@ -234,12 +234,11 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
     { text: "Matchins", icon: <CompareArrowsIcon />, href: "/admin/matchins" },
     { text: "Propuestas", icon: <AssignmentIcon />, href: "/admin/propuestas" },
     { text: "Plantillas", icon: <WidgetsIcon />, href: "/admin/templates" },
-    { text: "BD e-mails", icon: <EmailIcon />, href: "/admin/bd_emails" },
     { text: "Bandejas", icon: <InboxIcon />, href: "/admin/inbox" },
     { text: "Mailing", icon: <SendIcon />, href: "/admin/mailing" },
     { text: "Screenshot", icon: <CameraAltIcon />, href: "/admin/screenshot_oferta" },
     { text: "Solicitudes", icon: <RequestQuoteIcon />, href: "/admin/solicitudes" },
-    { text: "Asistente FAP", icon: <SmartToyIcon />, href: "/admin/agente" },
+    { text: "FAPY", icon: <SupportAgentIcon />, href: "/admin/agente" },
     { text: "Configuraciones", icon: <SettingsIcon />, href: "/admin/configuraciones" },
   ];
 

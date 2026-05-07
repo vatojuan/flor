@@ -263,6 +263,51 @@ def send_bulk_email_to_group(
         if conn: conn.close()
 
 
+def create_mailing_group(
+    name: str,
+    rubro: Optional[str] = None,
+    keyword: Optional[str] = None,
+) -> dict:
+    """Create a saved mailing group based on filters."""
+    import json
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        filters = {}
+        if rubro: filters["rubro"] = rubro
+        if keyword: filters["keyword"] = keyword
+
+        # Resolve members
+        conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL", "COALESCE(u.active, TRUE) = TRUE"]
+        params = []
+        if rubro:
+            conditions.append("u.rubro ILIKE %s"); params.append(f"%{rubro}%")
+        if keyword:
+            conditions.append("(u.name ILIKE %s OR u.description ILIKE %s)"); params.extend([f"%{keyword}%", f"%{keyword}%"])
+
+        where = " AND ".join(conditions)
+        cur.execute(f'SELECT u.id FROM "User" u WHERE {where}', params)
+        member_ids = [row[0] for row in cur.fetchall()]
+
+        cur.execute("""
+            INSERT INTO mailing_groups (name, description, filters, member_ids, created_at)
+            VALUES (%s, %s, %s, %s, NOW()) RETURNING id
+        """, (name, f"Creado por FAPY — {rubro or ''} {keyword or ''}".strip(), json.dumps(filters) if filters else None, member_ids))
+
+        group_id = cur.fetchone()[0]
+        conn.commit()
+
+        return {"group_id": group_id, "name": name, "members": len(member_ids), "message": f"Grupo '{name}' creado con {len(member_ids)} miembros. Lo podes ver en la seccion Mailing > Grupos."}
+    except Exception as e:
+        logger.error("create_mailing_group error: %s", e)
+        return {"error": str(e)}
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 # OpenAI function definitions for the agent
 TOOL_DEFINITIONS = [
     {
@@ -357,6 +402,22 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_mailing_group",
+            "description": "Crear un grupo de mailing guardado para enviar emails despues. Los grupos quedan guardados en la seccion Mailing del admin. Ejemplo: crear grupo 'Mozos Mendoza' filtrando por rubro Gastronomia.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Nombre del grupo (ej: 'Mozos Mendoza', 'IT seniors')"},
+                    "rubro": {"type": "string", "description": "Filtrar por rubro profesional"},
+                    "keyword": {"type": "string", "description": "Filtrar por palabra clave"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
 ]
 
 # Map function names to implementations
@@ -367,4 +428,5 @@ TOOL_FUNCTIONS = {
     "get_candidates_for_mailing": get_candidates_for_mailing,
     "get_platform_stats": get_platform_stats,
     "send_bulk_email_to_group": send_bulk_email_to_group,
+    "create_mailing_group": create_mailing_group,
 }

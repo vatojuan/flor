@@ -140,13 +140,13 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
 
   const menuItems = userRole === "empleador"
     ? [
-        { text: "Inicio", icon: <DashboardIcon />, href: "/" },
+        { text: "Inicio", icon: <DashboardIcon />, href: "/dashboard" },
         { text: "Publicar Oferta", icon: <PostAddIcon />, href: "/job-create" },
         { text: "Mis Ofertas", icon: <ListAltIcon />, href: "/job-list" },
         { text: "Actualizar Perfil", icon: <PersonIcon />, href: "/profile-empleador" },
       ]
     : [
-        { text: "Inicio", icon: <DashboardIcon />, href: "/" },
+        { text: "Inicio", icon: <DashboardIcon />, href: "/dashboard" },
         { text: "Ver Ofertas de Empleo", icon: <WorkIcon />, href: "/job-list" },
         { text: "Formación", icon: <SchoolIcon />, href: "/training" },
         { text: "Actualizar Perfil", icon: <PersonIcon />, href: "/profile-empleado" },

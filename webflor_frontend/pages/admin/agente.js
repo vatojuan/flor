@@ -10,7 +10,7 @@ import {
   useTheme,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PersonIcon from "@mui/icons-material/Person";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
@@ -24,7 +24,7 @@ export default function AgentePage() {
     {
       role: "assistant",
       content:
-        "Hola! Soy el asistente de FAP Mendoza. Puedo ayudarte a buscar candidatos, ver ofertas, armar grupos para mailing, y mas. Que necesitas?",
+        "Hola! Soy FAPY, tu asistente de FAP Mendoza. Puedo buscar candidatos, ver ofertas, armar grupos para mailing, y mucho mas. Que necesitas?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -98,7 +98,7 @@ export default function AgentePage() {
     <DashboardLayout>
       <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 80px)", p: 2 }}>
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "text.primary" }}>
-          Asistente FAP
+          FAPY
         </Typography>
 
         {/* Messages area */}
@@ -191,7 +191,7 @@ function MessageBubble({ message, theme }) {
           fontSize: 16,
         }}
       >
-        {isUser ? <PersonIcon fontSize="small" /> : <SmartToyIcon fontSize="small" />}
+        {isUser ? <PersonIcon fontSize="small" /> : <SupportAgentIcon fontSize="small" />}
       </Avatar>
       <Paper
         elevation={0}
