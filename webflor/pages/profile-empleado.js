@@ -12,97 +12,82 @@ import {
   TextField,
   Button,
   Typography,
-  Divider,
   Snackbar,
   Alert,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import useSnackbar from "../hooks/useSnackbar";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 export default function ProfileEmpleado() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
+  const theme = useTheme();
+  const { snackbar, showSnackbar, closeSnackbar } = useSnackbar();
 
-  // Estados para el perfil
+  // Profile state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Estado para la imagen de perfil
+  // Profile image state
   const [profileImageUrl, setProfileImageUrl] = useState(
     "/images/default-user.png"
   );
 
-  // Handler para renovar la imagen en caso de error
   const handleImageError = async () => {
     try {
       const res = await axios.get("/api/employee/renew-profile-picture");
       if (res.data?.url) {
         setProfileImageUrl(res.data.url);
       }
-    } catch (error) {
-      console.error("Error renovando la URL de la imagen:", error);
+    } catch (_err) {
+      // silent — image will stay at default
     }
   };
 
-  // Estados para la imagen de perfil subida y mensajes
   const [selectedProfileImage, setSelectedProfileImage] = useState(null);
   const [profileImageMessage, setProfileImageMessage] = useState("");
 
-  // Estados para documentos legales
+  // Document state
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-
-  // Diálogo para eliminar documento
+  // Confirm-dialog state: document delete
   const [openDocDeleteDialog, setOpenDocDeleteDialog] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState(null);
 
-  // Diálogo para eliminar cuenta
+  // Confirm-dialog state: account delete
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-  };
-
+  // --------------- Account delete ---------------
   const confirmDeleteAccount = async () => {
     try {
       const res = await axios.delete("/api/user/delete");
       if (res.status === 200) {
-        setSnackbar({
-          open: true,
-          message: "Cuenta eliminada correctamente",
-          severity: "success",
-        });
+        showSnackbar("Cuenta eliminada correctamente", "success");
         await signOut({ redirect: false });
         router.push("/login");
       }
-    } catch (error) {
-      console.error("Error al eliminar la cuenta:", error);
-      setSnackbar({
-        open: true,
-        message: "Error al eliminar la cuenta",
-        severity: "error",
-      });
+    } catch (_err) {
+      showSnackbar("Error al eliminar la cuenta", "error");
     } finally {
       setOpenDeleteDialog(false);
     }
   };
 
-  // Cargar perfil del empleado
+  // --------------- Load profile ---------------
   useEffect(() => {
     if (session) {
       axios
@@ -122,65 +107,49 @@ export default function ProfileEmpleado() {
                 if (renewRes.data?.url) {
                   setProfileImageUrl(renewRes.data.url);
                 }
-              } catch (error) {
-                console.error(
-                  "Error renovando la URL firmada de la imagen:",
-                  error
-                );
+              } catch (_err) {
+                // silent
               }
             }
           }
         })
-        .catch((err) => console.error("Error al cargar el perfil:", err));
+        .catch(() => {});
     }
   }, [session]);
 
-  // Cargar documentos subidos
+  // --------------- Load documents ---------------
   useEffect(() => {
     if (session) {
       axios
         .get("/api/employee/documents")
-        .then((res) => {
-          setDocuments(res.data.documents);
-        })
-        .catch((err) => console.error("Error al cargar documentos:", err));
+        .then((res) => setDocuments(res.data.documents))
+        .catch(() => {});
     }
   }, [session]);
 
+  // --------------- Auth guard ---------------
   useEffect(() => {
     if (status !== "loading" && !session) {
       router.push("/login");
     }
   }, [session, status, router]);
 
+  // --------------- Profile update ---------------
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. La llamada a la API. Esta debe actualizar la tabla User en el backend.
       await axios.put("/api/employee/profile", { name, phone, description });
-
-      // 2. Forzamos una recarga de la sesión desde el servidor.
-      // Esto obtendrá el nombre actualizado que acabamos de guardar en la tabla User.
       await update();
-
-      setSnackbar({
-        open: true,
-        message: "Perfil actualizado exitosamente",
-        severity: "success",
-      });
-    } catch (error) {
-      console.error("Error actualizando el perfil:", error);
-      setSnackbar({
-        open: true,
-        message: "Error actualizando el perfil",
-        severity: "error",
-      });
+      showSnackbar("Perfil actualizado exitosamente", "success");
+    } catch (_err) {
+      showSnackbar("Error actualizando el perfil", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // --------------- Profile image upload ---------------
   const handleProfileImageUpload = async (file) => {
     const imageFile = file || selectedProfileImage;
     if (!imageFile) {
@@ -190,62 +159,39 @@ export default function ProfileEmpleado() {
     const formData = new FormData();
     formData.append("profilePicture", imageFile);
     try {
-      // 1. La llamada a la API. Debe actualizar el campo 'image' en la tabla User.
       const res = await axios.post(
         "/api/employee/upload-profile-picture",
         formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
-
-      // 2. Forzamos la recarga de la sesión para obtener la nueva URL de la imagen.
       await update();
-
-      // 3. Actualizamos la URL localmente para una respuesta visual inmediata.
       setProfileImageUrl(res.data.user.profilePicture);
-
-      setSnackbar({
-        open: true,
-        message: "Imagen actualizada",
-        severity: "success",
-      });
-    } catch (error) {
-      console.error("Error actualizando la imagen de perfil:", error);
+      showSnackbar("Imagen actualizada", "success");
+    } catch (_err) {
       setProfileImageMessage("Error al actualizar la imagen de perfil.");
-      setSnackbar({
-        open: true,
-        message: "Error actualizando imagen",
-        severity: "error",
-      });
+      showSnackbar("Error actualizando imagen", "error");
     }
   };
 
-  // Restricciones para archivos
-  const MAX_FILE_SIZE_MB = 5; // Tamaño máximo en MB
-  const MAX_FILES = 5; // Número máximo de archivos permitidos
+  // --------------- Document upload ---------------
+  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILES = 5;
 
-  // Subida automática del documento al seleccionar el archivo
   const handleDocumentFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (documents.length >= MAX_FILES) {
-      setSnackbar({
-        open: true,
-        message: `Solo se permiten ${MAX_FILES} documentos.`,
-        severity: "error",
-      });
+      showSnackbar(`Solo se permiten ${MAX_FILES} documentos.`, "error");
       return;
     }
 
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > MAX_FILE_SIZE_MB) {
-      setSnackbar({
-        open: true,
-        message: `El archivo es demasiado grande. Máximo permitido: ${MAX_FILE_SIZE_MB} MB.`,
-        severity: "error",
-      });
+      showSnackbar(
+        `El archivo es demasiado grande. Máximo permitido: ${MAX_FILE_SIZE_MB} MB.`,
+        "error"
+      );
       return;
     }
 
@@ -253,43 +199,26 @@ export default function ProfileEmpleado() {
     setUploading(true);
     const formData = new FormData();
     formData.append("document", file);
-    if (session && session.user && session.user.id) {
+    if (session?.user?.id) {
       formData.append("userId", session.user.id);
     }
     try {
-      await axios.post(
-        "/api/employee/upload-document",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-      setUploadMessage("Documento subido correctamente.");
-      setSnackbar({
-        open: true,
-        message: "Documento subido",
-        severity: "success",
+      await axios.post("/api/employee/upload-document", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
+      setUploadMessage("Documento subido correctamente.");
+      showSnackbar("Documento subido", "success");
       const updatedDocs = await axios.get("/api/employee/documents");
       setDocuments(updatedDocs.data.documents);
-    } catch (error) {
-      console.error("Error al subir el documento:", error);
+    } catch (_err) {
       setUploadMessage("Error al subir el documento.");
-      setSnackbar({
-        open: true,
-        message: "Error subiendo documento",
-        severity: "error",
-      });
+      showSnackbar("Error subiendo documento", "error");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleRequestDeleteDocument = (documentId) => {
-    setSelectedDocId(documentId);
-    setOpenDocDeleteDialog(true);
-  };
-
+  // --------------- Document delete ---------------
   const confirmDeleteDocument = async () => {
     try {
       await axios.delete("/api/employee/delete-document", {
@@ -297,47 +226,56 @@ export default function ProfileEmpleado() {
       });
       const updatedDocs = await axios.get("/api/employee/documents");
       setDocuments(updatedDocs.data.documents);
-      setSnackbar({
-        open: true,
-        message: "Documento eliminado correctamente",
-        severity: "success",
-      });
-    } catch (error) {
-      console.error("Error al eliminar el documento:", error);
-      setSnackbar({
-        open: true,
-        message: "Error al eliminar el documento",
-        severity: "error",
-      });
+      showSnackbar("Documento eliminado correctamente", "success");
+    } catch (_err) {
+      showSnackbar("Error al eliminar el documento", "error");
     } finally {
       setOpenDocDeleteDialog(false);
       setSelectedDocId(null);
     }
   };
 
-  const cancelDeleteDocument = () => {
-    setOpenDocDeleteDialog(false);
-    setSelectedDocId(null);
+  // --------------- Document download ---------------
+  const handleOpenDocument = async (fileKey) => {
+    try {
+      const res = await axios.get(
+        `/api/employee/get-signed-url?fileName=${encodeURIComponent(fileKey)}`
+      );
+      if (!res.data?.url) {
+        throw new Error("Error al obtener la URL firmada");
+      }
+      window.open(res.data.url, "_blank");
+    } catch (_err) {
+      showSnackbar("Error al descargar el documento", "error");
+    }
   };
 
-  const handleDeleteAccount = () => {
-    setOpenDeleteDialog(true);
+  // --------------- Shared paper style ---------------
+  const paperSx = {
+    maxWidth: 560,
+    mx: "auto",
+    p: 3,
+    borderRadius: 2,
   };
 
   return (
     <DashboardLayout userRole={session?.user?.role || "empleado"}>
-      <Box sx={{ textAlign: "center", mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
+      <Box sx={{ maxWidth: 600, mx: "auto", mt: 4, mb: 6, px: 2 }}>
+        {/* ====== Page title ====== */}
+        <Typography variant="h4" gutterBottom sx={{ textAlign: "center" }}>
           Perfil de Empleado
         </Typography>
-        <Box sx={{ mb: 2 }}>
-          <ProfileImage
-            currentImage={profileImageUrl}
-            onImageSelected={(file) => handleProfileImageUpload(file)}
-            onError={handleImageError}
-          />
-        </Box>
-        <Paper sx={{ maxWidth: 500, mx: "auto", p: 3 }}>
+
+        {/* ====== SECTION 1 — Profile info ====== */}
+        <Paper elevation={1} sx={{ ...paperSx, mb: 3, textAlign: "center" }}>
+          <Box sx={{ mb: 2 }}>
+            <ProfileImage
+              currentImage={profileImageUrl}
+              onImageSelected={(file) => handleProfileImageUpload(file)}
+              onError={handleImageError}
+            />
+          </Box>
+
           <Box component="form" onSubmit={handleProfileUpdate} noValidate>
             <TextField
               label="Nombre"
@@ -362,9 +300,13 @@ export default function ProfileEmpleado() {
               multiline
               rows={4}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= 3000) {
+                  setDescription(e.target.value);
+                }
+              }}
               required
-              helperText="La descripción se usará para facilitar las búsquedas y matching. Máximo 1000 caracteres."
+              helperText={`${description.length}/3000 — La descripción se usará para facilitar las búsquedas y matching.`}
               inputProps={{ maxLength: 3000 }}
             />
             <Button
@@ -377,26 +319,30 @@ export default function ProfileEmpleado() {
               {loading ? "Actualizando..." : "Actualizar Perfil"}
             </Button>
           </Box>
+
           {session?.user?.provider === "credentials" && (
             <Box sx={{ textAlign: "center", mt: 2 }}>
               <Link href="/change-password" style={{ textDecoration: "none" }}>
-                <Button variant="contained" color="primary">
+                <Button variant="outlined" color="primary">
                   Cambiar Contraseña
                 </Button>
               </Link>
             </Box>
           )}
         </Paper>
-        <Divider sx={{ my: 3 }} />
-        <Paper sx={{ maxWidth: 500, mx: "auto", p: 3 }}>
+
+        {/* ====== SECTION 2 — Documents ====== */}
+        <Paper elevation={1} sx={{ ...paperSx, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Subir CV o Archivo De Interes
+            Documentos
           </Typography>
+
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Se permiten hasta {MAX_FILES} documentos. Tamaño máximo de cada
-            archivo: {MAX_FILE_SIZE_MB} MB.
+            Sube tu CV u otros archivos de interés. Hasta {MAX_FILES}{" "}
+            documentos, {MAX_FILE_SIZE_MB} MB cada uno.
           </Typography>
-          <Button variant="contained" component="label" sx={{ mt: 1 }}>
+
+          <Button variant="contained" component="label">
             Seleccionar Archivo
             <input
               type="file"
@@ -405,170 +351,147 @@ export default function ProfileEmpleado() {
               accept=".pdf,.doc,.docx,.jpg,.png"
             />
           </Button>
+
           {uploading && <LinearProgress sx={{ mt: 2 }} />}
           {uploadMessage && (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 1 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {uploadMessage}
             </Typography>
           )}
-        </Paper>
-        <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-          Archivos
-        </Typography>
-        {documents.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No hay documentos subidos.
-          </Typography>
-        ) : (
-          <Box
-            component="ul"
-            sx={{ listStyle: "none", p: 0, maxWidth: 500, mx: "auto" }}
-          >
-            {documents.map((doc) => (
-              <Box
-                component="li"
-                key={doc.id}
-                sx={{ mb: 1, display: "flex", alignItems: "center" }}
-              >
-                <Box sx={{ flexGrow: 1 }}>
-                  <Button
-                    fullWidth
-                    variant="text"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      try {
-                        const res = await axios.get(
-                          `/api/employee/get-signed-url?fileName=${encodeURIComponent(
-                            doc.fileKey
-                          )}`
-                        );
-                        if (!res.data || !res.data.url) {
-                          throw new Error("Error al obtener la URL firmada");
-                        }
-                        window.open(res.data.url, "_blank");
-                      } catch (error) {
-                        console.error("Error al descargar el documento:", error);
-                      }
-                    }}
-                    sx={{
-                      textTransform: "none",
-                      justifyContent: "flex-start",
-                      padding: "20px",
-                      color: "#1976d2",
-                      backgroundColor: "transparent",
-                      "&:hover": {
-                        backgroundColor: "rgba(25, 118, 210, 0.04)",
-                      },
-                    }}
-                  >
-                    {doc.originalName || "Documento"}
-                  </Button>
-                </Box>
-                <IconButton
-                  color="error"
-                  onClick={() => {
-                    setSelectedDocId(doc.id);
-                    setOpenDocDeleteDialog(true);
+
+          {documents.length === 0 ? (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 2, fontStyle: "italic" }}
+            >
+              No hay documentos subidos.
+            </Typography>
+          ) : (
+            <List sx={{ mt: 1 }}>
+              {documents.map((doc) => (
+                <ListItem
+                  key={doc.id}
+                  button
+                  onClick={() => handleOpenDocument(doc.fileKey)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    color: "primary.main",
+                    "&:hover": {
+                      backgroundColor: alpha(
+                        theme.palette.primary.main,
+                        0.04
+                      ),
+                    },
                   }}
                 >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            ))}
-          </Box>
-        )}
-        <Divider sx={{ my: 3 }} />
-        <Box sx={{ textAlign: "center", mt: 2 }}>
+                  <DescriptionOutlinedIcon
+                    sx={{ mr: 1.5, color: "primary.main", fontSize: 20 }}
+                  />
+                  <ListItemText
+                    primary={doc.originalName || "Documento"}
+                    primaryTypographyProps={{ noWrap: true }}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      color="error"
+                      onClick={() => {
+                        setSelectedDocId(doc.id);
+                        setOpenDocDeleteDialog(true);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+
+        {/* ====== Back to dashboard ====== */}
+        <Box sx={{ textAlign: "center", mb: 4 }}>
           <Link href="/dashboard" style={{ textDecoration: "none" }}>
             <Button variant="contained" color="primary">
               Volver al Dashboard
             </Button>
           </Link>
         </Box>
-        <Box
+
+        {/* ====== SECTION 3 — Account deletion (danger zone) ====== */}
+        <Paper
+          elevation={0}
           sx={{
-            mt: 4,
-            display: "flex",
-            justifyContent: "flex-end",
-            borderTop: "1px solid red",
-            pt: 2,
+            ...paperSx,
+            border: `1px solid ${theme.palette.error.main}`,
+            backgroundColor: alpha(theme.palette.error.main, 0.03),
           }}
         >
-          <Button
-            onClick={handleDeleteAccount}
-            variant="contained"
-            color="warning"
-          >
-            Eliminar Cuenta
-          </Button>
-        </Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+            Zona de peligro
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Eliminar tu cuenta es permanente y no se puede deshacer.
+          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              onClick={() => setOpenDeleteDialog(true)}
+              variant="contained"
+              color="error"
+            >
+              Eliminar Cuenta
+            </Button>
+          </Box>
+        </Paper>
       </Box>
 
-      <Dialog open={openDocDeleteDialog} onClose={cancelDeleteDocument}>
-        <DialogTitle>Confirmar Eliminación de Documento</DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Estás seguro de que deseas eliminar este documento?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelDeleteDocument} color="primary">
-            Cancelar
-          </Button>
-          <Button
-            onClick={confirmDeleteDocument}
-            color="secondary"
-            variant="contained"
-          >
-            Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* ====== Confirm dialogs ====== */}
+      <ConfirmDialog
+        open={openDocDeleteDialog}
+        title="Eliminar Documento"
+        message="¿Estás seguro de que deseas eliminar este documento?"
+        onConfirm={confirmDeleteDocument}
+        onCancel={() => {
+          setOpenDocDeleteDialog(false);
+          setSelectedDocId(null);
+        }}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        severity="warning"
+      />
 
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Confirmar Eliminación de Cuenta</DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se
-            puede deshacer.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)} color="primary">
-            Cancelar
-          </Button>
-          <Button
-            onClick={confirmDeleteAccount}
-            color="secondary"
-            variant="contained"
-          >
-            Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={openDeleteDialog}
+        title="Eliminar Cuenta"
+        message="¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer."
+        onConfirm={confirmDeleteAccount}
+        onCancel={() => setOpenDeleteDialog(false)}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        severity="error"
+      />
 
+      {/* ====== Snackbar ====== */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          onClose={closeSnackbar}
           severity={snackbar.severity}
           variant="filled"
           sx={{
             width: "100%",
-            bgcolor: (theme) =>
+            bgcolor: (t) =>
               snackbar.severity === "success"
-                ? theme.palette.secondary.main
+                ? t.palette.secondary.main
                 : snackbar.severity === "error"
-                ? theme.palette.error.main
-                : theme.palette.info.main,
+                ? t.palette.error.main
+                : t.palette.info.main,
             color: "#fff",
           }}
         >

@@ -16,13 +16,17 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   Snackbar,
   Alert,
   CircularProgress,
   Chip,
+  Grid,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
+import StarIcon from "@mui/icons-material/Star";
 import { useRouter } from "next/router";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
@@ -34,10 +38,14 @@ const fmtLabel = (l) => (l === "manual" ? "Manual" : "Automático");
 
 export default function MisOfertas({ toggleDarkMode, currentMode }) {
   const { user, loading } = useAdminAuth();
+  const theme = useTheme();
   const [offers, setOffers] = useState([]);
   const [sel, setSel] = useState(null);
   const [busy, setBusy] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: "", sev: "success" });
+
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, title: "" });
 
   const { query, replace } = useRouter();
   const highlightId = useRef(Number(query.jobId) || null);
@@ -67,8 +75,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
       .then((json) => {
         setOffers(Array.isArray(json.offers) ? json.offers : []);
       })
-      .catch((err) => {
-        console.error("Error obteniendo ofertas:", err);
+      .catch(() => {
         setSnack({ open: true, msg: "Error obteniendo ofertas", sev: "error" });
       })
       .finally(() => setBusy(false));
@@ -89,7 +96,6 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
   const updateSel = (k, v) => setSel((old) => ({ ...old, [k]: v }));
 
   const handleDelete = async (id) => {
-    if (!confirm("¿Eliminar esta oferta?")) return;
     try {
       const res = await fetch(`${API_URL}/api/job/delete-admin`, {
         method: "DELETE",
@@ -100,8 +106,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
       setOffers((prev) => prev.filter((o) => o.id !== id));
       setSnack({ open: true, msg: "Oferta eliminada", sev: "success" });
       if (highlightId.current === id) highlightId.current = null;
-    } catch (e) {
-      console.error("Error eliminando oferta:", e);
+    } catch (_e) {
       setSnack({ open: true, msg: "Error eliminando oferta", sev: "error" });
     }
   };
@@ -126,8 +131,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
       setOffers((prev) => prev.map((o) => (o.id === upd.id ? upd : o)));
       setSnack({ open: true, msg: "Oferta actualizada", sev: "success" });
       setSel(null);
-    } catch (e) {
-      console.error("Error actualizando oferta:", e);
+    } catch (_e) {
       setSnack({ open: true, msg: "Error actualizando oferta", sev: "error" });
     }
   };
@@ -143,6 +147,10 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
     );
   if (!user || !token) return null;
 
+  // ── row background colors using theme ──
+  const highlightBg = alpha(theme.palette.warning.light, 0.25);
+  const ownRowBg = alpha(theme.palette.primary.main, 0.06);
+
   // ── UI ──
   return (
     <DashboardLayout toggleDarkMode={toggleDarkMode} currentMode={currentMode}>
@@ -157,6 +165,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
               <TableRow>
                 {[
                   "Título",
+                  "Rubro",
                   "Descripción",
                   "Requisitos",
                   "Expira",
@@ -173,7 +182,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
             <TableBody>
               {offers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center">
+                  <TableCell colSpan={10} align="center">
                     No hay ofertas
                   </TableCell>
                 </TableRow>
@@ -182,19 +191,41 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
                   const email = o.contactEmail ?? o.contact_email ?? "—";
                   const phone = o.contactPhone ?? o.contact_phone ?? "—";
                   const isHighlight = o.id === highlightId.current;
+                  const isPaid = o.is_paid || o.isPaid;
                   return (
                     <TableRow
                       key={o.id}
                       id={`offer-row-${o.id}`}
+                      hover
                       sx={{
                         backgroundColor: isHighlight
-                          ? "#fff9c4"
+                          ? highlightBg
                           : o.userId === user.id
-                          ? "#FFFDE7"
+                          ? ownRowBg
                           : "inherit",
                       }}
                     >
-                      <TableCell>{o.title}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          {o.title}
+                          {isPaid && (
+                            <Chip
+                              icon={<StarIcon />}
+                              label="Destacada"
+                              size="small"
+                              color="warning"
+                              variant="filled"
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {o.rubro ? (
+                          <Chip label={o.rubro} size="small" color="secondary" variant="outlined" />
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                       <TableCell>{o.description}</TableCell>
                       <TableCell>{o.requirements}</TableCell>
                       <TableCell>{fmtDate(o.expirationDate)}</TableCell>
@@ -223,7 +254,7 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
                           size="small"
                           variant="outlined"
                           color="error"
-                          onClick={() => handleDelete(o.id)}
+                          onClick={() => setDeleteDialog({ open: true, id: o.id, title: o.title })}
                         >
                           Eliminar
                         </Button>
@@ -237,78 +268,124 @@ export default function MisOfertas({ toggleDarkMode, currentMode }) {
         </TableContainer>
       </Container>
 
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, id: null, title: "" })}
+      >
+        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas eliminar la oferta <strong>{deleteDialog.title}</strong>? Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog({ open: false, id: null, title: "" })}>
+            Cancelar
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              handleDelete(deleteDialog.id);
+              setDeleteDialog({ open: false, id: null, title: "" });
+            }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Dialogo edición */}
-      <Dialog open={Boolean(sel)} onClose={() => setSel(null)} fullWidth>
+      <Dialog open={Boolean(sel)} onClose={() => setSel(null)} fullWidth maxWidth="sm">
         <DialogTitle>Editar oferta</DialogTitle>
         <DialogContent dividers>
           {sel && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <TextField
-                label="Título"
-                fullWidth
-                value={sel.title}
-                onChange={(e) => updateSel("title", e.target.value)}
-              />
-              <TextField
-                label="Descripción"
-                fullWidth
-                multiline
-                rows={3}
-                value={sel.description}
-                onChange={(e) => updateSel("description", e.target.value)}
-              />
-              <TextField
-                label="Requisitos"
-                fullWidth
-                multiline
-                rows={2}
-                value={sel.requirements}
-                onChange={(e) => updateSel("requirements", e.target.value)}
-              />
-              <TextField
-                label="Fecha de expiración"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={sel.expirationDate?.slice(0, 10) || ""}
-                onChange={(e) => updateSel("expirationDate", e.target.value)}
-              />
-              <TextField
-                label="E-mail de contacto"
-                type="email"
-                fullWidth
-                value={sel.contactEmail}
-                onChange={(e) => updateSel("contactEmail", e.target.value)}
-                required={sel.source === "admin"}
-              />
-              <TextField
-                label="Teléfono de contacto"
-                fullWidth
-                value={sel.contactPhone}
-                onChange={(e) => updateSel("contactPhone", e.target.value)}
-              />
-              <TextField
-                select
-                label="Etiqueta"
-                SelectProps={{ native: true }}
-                value={sel.label}
-                onChange={(e) => updateSel("label", e.target.value)}
-              >
-                <option value="automatic">Automático</option>
-                <option value="manual">Manual</option>
-              </TextField>
-              <TextField
-                select
-                label="Fuente"
-                SelectProps={{ native: true }}
-                value={sel.source}
-                onChange={(e) => updateSel("source", e.target.value)}
-              >
-                <option value="admin">Administrador</option>
-                <option value="employer">Empleador</option>
-                <option value="instagram">Instagram</option>
-              </TextField>
-            </Box>
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Título"
+                  fullWidth
+                  value={sel.title}
+                  onChange={(e) => updateSel("title", e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Descripción"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={sel.description}
+                  onChange={(e) => updateSel("description", e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Requisitos"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={sel.requirements}
+                  onChange={(e) => updateSel("requirements", e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Fecha de expiración"
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={sel.expirationDate?.slice(0, 10) || ""}
+                  onChange={(e) => updateSel("expirationDate", e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="E-mail de contacto"
+                  type="email"
+                  fullWidth
+                  value={sel.contactEmail}
+                  onChange={(e) => updateSel("contactEmail", e.target.value)}
+                  required={sel.source === "admin"}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Teléfono de contacto"
+                  fullWidth
+                  value={sel.contactPhone}
+                  onChange={(e) => updateSel("contactPhone", e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField
+                  select
+                  label="Etiqueta"
+                  fullWidth
+                  SelectProps={{ native: true }}
+                  value={sel.label}
+                  onChange={(e) => updateSel("label", e.target.value)}
+                >
+                  <option value="automatic">Automático</option>
+                  <option value="manual">Manual</option>
+                </TextField>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField
+                  select
+                  label="Fuente"
+                  fullWidth
+                  SelectProps={{ native: true }}
+                  value={sel.source}
+                  onChange={(e) => updateSel("source", e.target.value)}
+                >
+                  <option value="admin">Administrador</option>
+                  <option value="employer">Empleador</option>
+                  <option value="instagram">Instagram</option>
+                </TextField>
+              </Grid>
+            </Grid>
           )}
         </DialogContent>
         <DialogActions>

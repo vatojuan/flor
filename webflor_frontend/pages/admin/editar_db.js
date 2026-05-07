@@ -16,16 +16,21 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   Snackbar,
   Alert,
   Typography,
   Box,
-  CircularProgress
+  CircularProgress,
+  Chip,
+  Grid,
+  InputAdornment,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
+import SearchIcon from "@mui/icons-material/Search";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
 
@@ -42,6 +47,11 @@ export default function EditarDB() {
   const [editedFiles, setEditedFiles] = useState([]);
   const [newFile, setNewFile] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, userId: null, userName: "" });
+  // File delete confirmation dialog state
+  const [fileDeleteDialog, setFileDeleteDialog] = useState({ open: false, fileId: null, fileName: "" });
 
   const getToken = () => typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
 
@@ -133,7 +143,6 @@ export default function EditarDB() {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm("¿Estás seguro? Se eliminarán la cuenta, archivos y embeddings.")) return;
     const res = await handleApiCall(`/admin/users/${userId}`, { method: "DELETE" });
     if (res && res.ok) {
       setSnackbar({ open: true, message: "Usuario eliminado", severity: "success" });
@@ -168,7 +177,7 @@ export default function EditarDB() {
   };
 
   const handleDeleteFile = async (fileId) => {
-    if (!selectedUser || !window.confirm("¿Seguro que quieres eliminar este archivo?")) return;
+    if (!selectedUser) return;
     const res = await handleApiCall(`/admin/users/${selectedUser.id}/files/${fileId}`, { method: "DELETE" });
     if (res && res.ok) {
       const updatedUser = await res.json();
@@ -182,12 +191,7 @@ export default function EditarDB() {
 
   const handleDownloadFile = async (file) => {
     if (!selectedUser) return;
-    
-    // --- URL CORRECTA ---
-    // Esta URL ahora coincide con el endpoint que agregamos en el backend,
-    // incluyendo el prefijo del router "/admin/users".
     const endpoint = `/admin/users/files/${file.id}/signed-url`;
-
     const res = await handleApiCall(endpoint, { method: 'GET' });
 
     if (res && res.ok) {
@@ -217,7 +221,21 @@ export default function EditarDB() {
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" gutterBottom>Editar Base de Datos</Typography>
-        <TextField label="Buscar cliente" variant="outlined" fullWidth margin="normal" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <TextField
+          label="Buscar cliente"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -225,23 +243,31 @@ export default function EditarDB() {
                 <TableCell>Nombre</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Teléfono</TableCell>
+                <TableCell>Rubro</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredUsers.length > 0 ? filteredUsers.map((u) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} hover>
                   <TableCell>{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>{u.phone}</TableCell>
+                  <TableCell>
+                    {u.rubro ? (
+                      <Chip label={u.rubro} size="small" color="primary" variant="outlined" />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
+                    )}
+                  </TableCell>
                   <TableCell align="center">
                     <IconButton onClick={() => handleEditClick(u)}><EditIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => handleDeleteUser(u.id)}><DeleteIcon color="error" /></IconButton>
+                    <IconButton onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name || u.email })}><DeleteIcon color="error" /></IconButton>
                   </TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
-                  <TableCell colSpan={4} align="center">No se encontraron clientes.</TableCell>
+                  <TableCell colSpan={5} align="center">No se encontraron clientes.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -249,35 +275,118 @@ export default function EditarDB() {
         </TableContainer>
       </Container>
 
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, userId: null, userName: "" })}
+      >
+        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas eliminar a <strong>{deleteDialog.userName}</strong>? Se eliminarán la cuenta, archivos y embeddings. Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog({ open: false, userId: null, userName: "" })}>
+            Cancelar
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              handleDeleteUser(deleteDialog.userId);
+              setDeleteDialog({ open: false, userId: null, userName: "" });
+            }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* File delete confirmation dialog */}
+      <Dialog
+        open={fileDeleteDialog.open}
+        onClose={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}
+      >
+        <DialogTitle>Confirmar eliminación de archivo</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Seguro que quieres eliminar el archivo <strong>{fileDeleteDialog.fileName}</strong>?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}>
+            Cancelar
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              handleDeleteFile(fileDeleteDialog.fileId);
+              setFileDeleteDialog({ open: false, fileId: null, fileName: "" });
+            }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {selectedUser && (
         <Dialog open={openEditDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
           <DialogTitle>Editar Usuario: {selectedUser.name}</DialogTitle>
-          <DialogContent>
-              <TextField label="Nombre" fullWidth margin="normal" value={editedName} onChange={(e) => setEditedName(e.target.value)} />
-              <TextField label="Teléfono" fullWidth margin="normal" value={editedPhone} onChange={(e) => setEditedPhone(e.target.value)} />
-              <TextField label="Descripción" fullWidth margin="normal" multiline rows={3} value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} />
-              <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1">Archivos Subidos</Typography>
-                  {editedFiles && editedFiles.length > 0 ? (
-                      editedFiles.map((file) => (
-                      <Box key={file.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', my: 1, p: 1, borderRadius: 1, '&:hover': { backgroundColor: 'action.hover' }}}>
-                          <Typography variant="body1" sx={{ flexGrow: 1 }}>{file.filename}</Typography>
-                          <Box>
-                              <IconButton onClick={() => handleDownloadFile(file)}><DownloadIcon /></IconButton>
-                              <IconButton onClick={() => handleDeleteFile(file.id)}><DeleteIcon color="error" /></IconButton>
-                          </Box>
-                      </Box>
-                      ))
-                  ) : (<Typography variant="body2">No hay archivos subidos.</Typography>)}
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                    <Button variant="contained" component="label" startIcon={<CloudUploadIcon />}>
-                      Agregar Archivo
-                      <input type="file" hidden onChange={handleNewFileChange} />
-                    </Button>
-                    {newFile && (<Typography variant="body2" sx={{ ml: 2 }}>{newFile.name}</Typography>)}
-                    <Button variant="outlined" sx={{ ml: 2 }} onClick={handleUploadFile} disabled={!newFile}>Subir</Button>
+          <DialogContent sx={{ pt: 2 }}>
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Nombre" fullWidth value={editedName} onChange={(e) => setEditedName(e.target.value)} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Teléfono" fullWidth value={editedPhone} onChange={(e) => setEditedPhone(e.target.value)} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField label="Descripción" fullWidth multiline rows={3} value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} />
+              </Grid>
+            </Grid>
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>Archivos Subidos</Typography>
+              {editedFiles && editedFiles.length > 0 ? (
+                editedFiles.map((file) => (
+                  <Box
+                    key={file.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      my: 1,
+                      p: 1,
+                      borderRadius: 1,
+                      bgcolor: 'action.hover',
+                      '&:hover': { bgcolor: 'action.selected' },
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ flexGrow: 1 }}>{file.filename}</Typography>
+                    <Box>
+                      <IconButton size="small" onClick={() => handleDownloadFile(file)}><DownloadIcon fontSize="small" /></IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => setFileDeleteDialog({ open: true, fileId: file.id, fileName: file.filename })}
+                      >
+                        <DeleteIcon fontSize="small" color="error" />
+                      </IconButton>
+                    </Box>
                   </Box>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">No hay archivos subidos.</Typography>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                <Button variant="contained" component="label" startIcon={<CloudUploadIcon />} size="small">
+                  Agregar Archivo
+                  <input type="file" hidden onChange={handleNewFileChange} />
+                </Button>
+                {newFile && (<Typography variant="body2" sx={{ ml: 2 }}>{newFile.name}</Typography>)}
+                <Button variant="outlined" size="small" sx={{ ml: 2 }} onClick={handleUploadFile} disabled={!newFile}>Subir</Button>
               </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDialogClose}>Cancelar</Button>
