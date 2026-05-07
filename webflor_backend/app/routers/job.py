@@ -16,9 +16,12 @@ Ofertas de empleo
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import traceback
+
+logger = logging.getLogger(__name__)
 from datetime import datetime
 from types import SimpleNamespace
 from typing import List, Optional, Tuple, Dict, Any
@@ -92,21 +95,35 @@ def job_has_column(cur, col: str) -> bool:
 
 
 # ─────────────────── Embeddings ───────────────────────
+from openai import OpenAI as _OpenAI
+_oai_client = _OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""), timeout=30)
+
 def generate_embedding(txt: str) -> Optional[List[float]]:
     try:
-        r = requests.post(
-            "https://api.openai.com/v1/embeddings",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY','')}",
-            },
-            json={"model": "text-embedding-ada-002", "input": txt},
-            timeout=20,
-        ).json()
-        return r["data"][0]["embedding"]
+        resp = _oai_client.embeddings.create(model="text-embedding-ada-002", input=txt)
+        return resp.data[0].embedding
     except Exception:
-        traceback.print_exc()
+        logger.exception("Failed to generate embedding")
         return None
+
+
+def _classify_rubro(title: str, description: str) -> str:
+    """Use GPT to classify the job into a rubro category."""
+    try:
+        resp = _oai_client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "Clasifica la siguiente oferta de trabajo en UNA sola categoria profesional. Responde SOLO con el nombre de la categoria. Categorias posibles: Gastronomia, Construccion, Administracion, IT/Sistemas, Salud, Educacion, Comercio/Ventas, Logistica/Transporte, Produccion/Industria, Servicios Generales, Diseno/Comunicacion, Derecho, Contabilidad/Finanzas, Recursos Humanos, Agricultura, Turismo/Hoteleria. Si no encaja en ninguna, responde General."},
+                {"role": "user", "content": f"Titulo: {title}\nDescripcion: {description[:500]}"},
+            ],
+            max_tokens=20,
+            temperature=0.1,
+        )
+        rubro = resp.choices[0].message.content.strip().strip('"')
+        return rubro if rubro else "General"
+    except Exception:
+        logger.warning("Failed to classify rubro, defaulting to General")
+        return "General"
 
 
 # ═══════════ Helpers comunes (inserción + matching) ═══════════
@@ -144,6 +161,7 @@ def _insert_job(
         contact_phone = contact_phone or phone_fb
 
     embedding = generate_embedding(f"{title}\n{desc}\n{reqs}")
+    rubro = payload.get("rubro") or _classify_rubro(title, desc)
 
     conn = cur = None
     try:
@@ -162,9 +180,9 @@ def _insert_job(
 
         fields = [
             "title", "description", "requirements", '"expirationDate"',
-            '"userId"', "embedding", "label", "source"
+            '"userId"', "embedding", "label", "source", "rubro"
         ]
-        values = [title, desc, reqs, exp_dt, owner_id, embedding, label, source]
+        values = [title, desc, reqs, exp_dt, owner_id, embedding, label, source, rubro]
 
         if has_is_paid:
             fields.append("is_paid");        values.append(is_paid)
