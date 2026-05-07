@@ -20,6 +20,7 @@ from app.routers import (
     cv_upload,
     files,
     integration,
+    inbox,
     mailing,
     payments,
     screenshot_to_job,
@@ -77,6 +78,7 @@ async def log_request(request: Request, call_next):
 # Cada router es responsable de su propio prefijo.
 app.include_router(agent.router)
 app.include_router(auth.router)
+app.include_router(inbox.router)
 app.include_router(mailing.router)
 app.include_router(payments.router)
 app.include_router(screenshot_to_job.router)
