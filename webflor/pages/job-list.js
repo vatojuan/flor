@@ -68,6 +68,8 @@ export default function JobList() {
   /* ---- Search / filter state ---- */
   const [searchQuery, setSearchQuery] = useState("");
   const [rubroFilter, setRubroFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
   /* ---- Derived: unique rubros for filter dropdown ---- */
   const rubros = useMemo(() => {
@@ -75,18 +77,52 @@ export default function JobList() {
     return Array.from(set).sort();
   }, [jobs]);
 
-  /* ---- Filtered jobs ---- */
+  /* ---- Filtered + sorted jobs ---- */
   const filteredJobs = useMemo(() => {
     let result = jobs;
+
+    // Text search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((j) => j.title?.toLowerCase().includes(q));
     }
+
+    // Rubro filter
     if (rubroFilter) {
       result = result.filter((j) => j.rubro === rubroFilter);
     }
+
+    // Date filter
+    if (dateFilter) {
+      const now = Date.now();
+      const cutoffs = { "24h": 86400000, "1w": 604800000, "1m": 2592000000 };
+      const ms = cutoffs[dateFilter];
+      if (ms) {
+        result = result.filter((j) => {
+          const d = j.createdAt || j.created_at;
+          return d && now - new Date(d).getTime() <= ms;
+        });
+      }
+    }
+
+    // Type filter
+    if (typeFilter === "paid") {
+      result = result.filter((j) => j.is_paid);
+    } else if (typeFilter === "free") {
+      result = result.filter((j) => !j.is_paid);
+    }
+
+    // Sort: featured (is_paid) first, then newest
+    result = [...result].sort((a, b) => {
+      if (a.is_paid && !b.is_paid) return -1;
+      if (!a.is_paid && b.is_paid) return 1;
+      const da = new Date(a.createdAt || a.created_at || 0);
+      const db = new Date(b.createdAt || b.created_at || 0);
+      return db - da;
+    });
+
     return result;
-  }, [jobs, searchQuery, rubroFilter]);
+  }, [jobs, searchQuery, rubroFilter, dateFilter, typeFilter]);
 
   /* ---- Fetch jobs ---- */
   useEffect(() => {
@@ -287,7 +323,7 @@ export default function JobList() {
               ),
             }}
           />
-          <FormControl size="small" sx={{ minWidth: 200 }}>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Rubro</InputLabel>
             <Select
               value={rubroFilter}
@@ -300,6 +336,31 @@ export default function JobList() {
                   {r}
                 </MenuItem>
               ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Fecha</InputLabel>
+            <Select
+              value={dateFilter}
+              label="Fecha"
+              onChange={(e) => setDateFilter(e.target.value)}
+            >
+              <MenuItem value="">Todas</MenuItem>
+              <MenuItem value="24h">Ultimas 24hs</MenuItem>
+              <MenuItem value="1w">Ultima semana</MenuItem>
+              <MenuItem value="1m">Ultimo mes</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Tipo</InputLabel>
+            <Select
+              value={typeFilter}
+              label="Tipo"
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <MenuItem value="">Todas</MenuItem>
+              <MenuItem value="paid">Destacadas</MenuItem>
+              <MenuItem value="free">Gratuitas</MenuItem>
             </Select>
           </FormControl>
         </Stack>

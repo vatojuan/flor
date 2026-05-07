@@ -30,9 +30,10 @@ from pgvector.psycopg2 import register_vector
 
 import requests
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Request, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
+from pydantic import BaseModel, Field
 
 from app.database import get_db_connection
 from app.core.auth import SECRET_KEY, ALGORITHM
@@ -40,6 +41,44 @@ from app.routers.match import run_matching_for_job
 from app.routers.proposal import deliver
 
 load_dotenv()
+
+
+# ─────────────────── Pydantic models ────────────────────
+
+class JobCreateRequest(BaseModel):
+    """Payload para crear una oferta de empleo."""
+    title: str = Field(..., min_length=1, description="Título de la oferta")
+    description: str = Field(..., min_length=1, description="Descripción del puesto")
+    requirements: str = Field("", description="Requisitos del puesto")
+    expirationDate: Optional[str] = Field(None, description="Fecha de expiración ISO 8601 (ej. 2025-12-31T00:00:00Z)")
+    label: str = Field("manual", description="Etiqueta: 'manual' o 'automatic'")
+    isPaid: bool = Field(False, description="Si la oferta es paga")
+    contactEmail: Optional[str] = Field(None, description="Email de contacto del empleador")
+    contactPhone: Optional[str] = Field(None, description="Teléfono de contacto del empleador")
+    rubro: Optional[str] = Field(None, description="Rubro/categoría profesional (se clasifica automáticamente si no se envía)")
+
+
+class JobCreateAdminRequest(JobCreateRequest):
+    """Payload extendido para creación de oferta por admin."""
+    userId: Optional[int] = Field(None, description="ID del usuario dueño de la oferta (opcional, se usa el admin si no se envía)")
+    source: str = Field("admin", description="Origen de la oferta")
+
+
+class CancelApplicationRequest(BaseModel):
+    """Payload para cancelar una postulación."""
+    jobId: int = Field(..., description="ID de la oferta a la cual se quiere cancelar la postulación")
+
+
+class ApplyToJobRequest(BaseModel):
+    """Payload para postularse a una oferta."""
+    jobId: int = Field(..., description="ID de la oferta a la que se postula")
+
+
+class JobResponse(BaseModel):
+    """Respuesta estándar al crear una oferta."""
+    message: str
+    jobId: int
+
 
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 oauth2_user = HTTPBearer()
@@ -372,12 +411,10 @@ async def confirm_apply(token: str = Path(..., description="Token enviado por em
 
 @router.delete("/cancel-application", summary="Cancelar la postulación del usuario")
 async def cancel_application(
-    payload: Dict[str, Any],
+    payload: CancelApplicationRequest,
     current_user=Depends(get_current_user),
 ):
-    job_id = payload.get("jobId")
-    if not job_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Falta jobId")
+    job_id = payload.jobId
     conn = cur = None
     try:
         conn = get_db_connection(); cur = conn.cursor()
@@ -439,13 +476,13 @@ async def get_job(job_id: int = Path(..., description="ID de la oferta")):
         if conn: conn.close()
 
 
-@router.post("/create", status_code=status.HTTP_201_CREATED, summary="Crear oferta (empleador)")
-async def create_job(data: Dict[str, Any], current_user=Depends(get_current_user)):
+@router.post("/create", status_code=status.HTTP_201_CREATED, response_model=JobResponse, summary="Crear oferta (empleador)")
+async def create_job(data: JobCreateRequest, current_user=Depends(get_current_user)):
     job_id, _ = _insert_job(
-        data,
+        data.model_dump(),
         owner_id=current_user.id,
         source="employer",
-        label_default="automatic"  # ✅ Etiqueta automática para empleadores
+        label_default="automatic",
     )
     return {"message": "Oferta creada", "jobId": job_id}
 
@@ -481,34 +518,27 @@ async def delete_job(
 @router.post(
     "/create-admin",
     status_code=status.HTTP_201_CREATED,
+    response_model=JobResponse,
     dependencies=[Depends(oauth2_admin)],
     summary="Crear oferta (admin)",
 )
-async def create_admin_job(request: Request, admin_sub: str = Depends(get_current_admin_sub)):
-    data    = await request.json()
-    raw_uid = data.get("userId")
-    try:
-        owner_id = int(raw_uid) if raw_uid else None
-    except:
-        owner_id = None
+async def create_admin_job(data: JobCreateAdminRequest, admin_sub: str = Depends(get_current_admin_sub)):
+    owner_id = data.userId
     if not owner_id:
         owner_id = get_admin_id_by_email(admin_sub)
         if not owner_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Admin sin usuario asociado")
     job_id, _ = _insert_job(
-        data,
+        data.model_dump(),
         owner_id=owner_id,
-        source=data.get("source", "admin"),
-        label_default=data.get("label", "manual"),
+        source=data.source,
+        label_default=data.label,
     )
     return {"message": "Oferta creada", "jobId": job_id}
 
 @router.post("/apply", status_code=status.HTTP_201_CREATED, summary="Postularse a una oferta")
-async def apply_to_job(request: Request, current_user=Depends(get_current_user)):
-    data = await request.json()
-    job_id = data.get("jobId")
-    if not job_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Falta jobId")
+async def apply_to_job(data: ApplyToJobRequest, current_user=Depends(get_current_user)):
+    job_id = data.jobId
 
     conn = cur = None
     try:

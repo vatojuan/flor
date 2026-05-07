@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTheme, styled } from "@mui/material/styles";
 import {
   AppBar,
   Toolbar,
   Box,
+  Badge,
   Divider,
   IconButton,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
+  Popover,
+  Typography,
+  CircularProgress,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,6 +25,10 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import WidgetsIcon from "@mui/icons-material/Widgets";
 import SettingsIcon from "@mui/icons-material/Settings";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import WorkIcon from "@mui/icons-material/Work";
+import StarIcon from "@mui/icons-material/Star";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -114,6 +122,98 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
   }, [open]);
 
   const handleDrawerToggle = () => setOpen((prev) => !prev);
+
+  // ── Notifications state ──
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifAnchor, setNotifAnchor] = useState(null);
+  const [readIds, setReadIds] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return JSON.parse(localStorage.getItem("notif_read_ids") || "[]");
+      } catch { return []; }
+    }
+    return [];
+  });
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+      if (!token) return;
+      setNotifLoading(true);
+      const res = await fetch(`${API_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [API_URL]);
+
+  // Fetch on mount and every 60s
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Persist read IDs
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("notif_read_ids", JSON.stringify(readIds));
+    }
+  }, [readIds]);
+
+  const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length;
+
+  const handleNotifOpen = (e) => {
+    setNotifAnchor(e.currentTarget);
+    if (notifications.length === 0) fetchNotifications();
+  };
+  const handleNotifClose = () => setNotifAnchor(null);
+
+  const markAsRead = (id) => {
+    setReadIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    // Fire-and-forget PATCH (for future server-side tracking)
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+    if (token) {
+      fetch(`${API_URL}/api/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+  };
+
+  const markAllRead = () => {
+    setReadIds(notifications.map((n) => n.id));
+  };
+
+  const getNotifIcon = (type) => {
+    switch (type) {
+      case "service_request": return <WorkIcon fontSize="small" color="warning" />;
+      case "new_candidate": return <PersonAddIcon fontSize="small" color="info" />;
+      case "high_match": return <StarIcon fontSize="small" color="success" />;
+      default: return <NotificationsIcon fontSize="small" />;
+    }
+  };
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "ahora";
+    if (mins < 60) return `hace ${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `hace ${hrs}h`;
+    const days = Math.floor(hrs / 24);
+    return `hace ${days}d`;
+  };
 
   const drawerBg = theme.palette.mode === "dark" ? (theme.palette.secondary.dark || "#1a2e30") : theme.palette.primary.main;
   const appBarBg = theme.palette.mode === "dark" ? theme.palette.background.paper : theme.palette.primary.dark;
@@ -238,9 +338,75 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
               </Link>
             )}
             <Box sx={{ flexGrow: 1 }} />
-            <IconButton sx={{ color: "#fff", mr: 2 }}>
-              <NotificationsIcon />
+            <IconButton onClick={handleNotifOpen} sx={{ color: "#fff", mr: 2 }}>
+              <Badge badgeContent={unreadCount} color="error" max={99}>
+                <NotificationsIcon />
+              </Badge>
             </IconButton>
+            <Popover
+              open={Boolean(notifAnchor)}
+              anchorEl={notifAnchor}
+              onClose={handleNotifClose}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{ sx: { width: 380, maxHeight: 480 } }}
+            >
+              <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
+                <Typography variant="subtitle1" fontWeight={600}>Notificaciones</Typography>
+                {unreadCount > 0 && (
+                  <Typography
+                    variant="caption"
+                    sx={{ cursor: "pointer", color: "primary.main", "&:hover": { textDecoration: "underline" } }}
+                    onClick={markAllRead}
+                  >
+                    Marcar todo leido
+                  </Typography>
+                )}
+              </Box>
+              {notifLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : notifications.length === 0 ? (
+                <Box sx={{ p: 3, textAlign: "center" }}>
+                  <Typography variant="body2" color="text.secondary">Sin notificaciones</Typography>
+                </Box>
+              ) : (
+                <List dense sx={{ p: 0 }}>
+                  {notifications.slice(0, 10).map((n) => {
+                    const isRead = readIds.includes(n.id);
+                    return (
+                      <ListItem
+                        key={n.id}
+                        button
+                        onClick={() => markAsRead(n.id)}
+                        sx={{
+                          backgroundColor: isRead ? "transparent" : "action.hover",
+                          "&:hover": { backgroundColor: "action.selected" },
+                          py: 1.2,
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          {isRead ? <CheckCircleIcon fontSize="small" color="disabled" /> : getNotifIcon(n.type)}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={n.message}
+                          secondary={timeAgo(n.date)}
+                          primaryTypographyProps={{
+                            variant: "body2",
+                            fontWeight: isRead ? 400 : 600,
+                            sx: { whiteSpace: "normal", lineHeight: 1.3 },
+                          }}
+                          secondaryTypographyProps={{ variant: "caption" }}
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              )}
+            </Popover>
             <IconButton onClick={toggleDarkMode ? toggleDarkMode : () => {}} sx={{ color: "#fff" }}>
               {theme.palette.mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>

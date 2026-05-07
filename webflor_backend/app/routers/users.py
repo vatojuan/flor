@@ -1,14 +1,14 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.database import SessionLocal, get_db_connection
 from app.models.user import User
 from pydantic import BaseModel
 import requests  # Para conectar con Supabase
 from app.routers.match import run_matching_for_user  # <-- Importamos la función
 
 router = APIRouter(
-    prefix="/users",
+    prefix="/api/users",
     tags=["users"],
 )
 
@@ -45,6 +45,46 @@ def get_current_user():
     p. ej. leyendo el token JWT y cargando el User correspondiente.
     """
     raise NotImplementedError("Implementar autenticación")
+
+@router.get("/{user_id}/public-profile")
+async def get_public_profile(user_id: int):
+    """
+    Devuelve información pública de un candidato (empleado).
+    No requiere autenticación.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            'SELECT id, name, rubro, description, phone, "profilePicture", "cvUrl" '
+            'FROM "User" WHERE id = %s AND role = %s',
+            (user_id, "empleado"),
+        )
+        row = cur.fetchone()
+        cur.close()
+
+        if not row:
+            raise HTTPException(404, "Candidato no encontrado")
+
+        return {
+            "id": row[0],
+            "name": row[1],
+            "rubro": row[2],
+            "description": row[3],
+            "phone": row[4],
+            "profilePicture": row[5],
+            "cvUrl": row[6],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error obteniendo perfil público del usuario %d: %s", user_id, e)
+        raise HTTPException(500, "Error interno al obtener el perfil público")
+    finally:
+        if conn:
+            conn.close()
+
 
 @router.put("/me", response_model=UserOut)
 async def update_my_profile(

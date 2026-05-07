@@ -22,6 +22,7 @@ from app.routers import (
     integration,
     inbox,
     mailing,
+    notifications,
     payments,
     screenshot_to_job,
     service_requests,
@@ -48,6 +49,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="FAP Mendoza API",
+    description="API de la plataforma de recursos humanos FAP Mendoza. Gestión de candidatos, ofertas, matching con IA, y comunicaciones.",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -100,6 +103,7 @@ app.include_router(cv_admin_upload.router)
 app.include_router(email_db_admin.router)
 app.include_router(job_admin.router)
 app.include_router(training.router)
+app.include_router(notifications.router)
 app.include_router(admin_auth_router, prefix="/auth", tags=["admin"])
 
 

@@ -30,6 +30,9 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import SearchIcon from "@mui/icons-material/Search";
 import LogoutIcon from "@mui/icons-material/Logout";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import StarIcon from "@mui/icons-material/Star";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
@@ -47,6 +50,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
   const [applications, setApplications] = useState([]);
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
   const [selectedCancelJobId, setSelectedCancelJobId] = useState(null);
+  const [employerJobs, setEmployerJobs] = useState([]);
 
   /* ---- Route guards ---- */
   useEffect(() => {
@@ -85,6 +89,37 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
 
     fetchApplications();
   }, [sessionStatus, userRole, token, authHeader]);
+
+  /* ---- Fetch employer jobs (empleador/admin) ---- */
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || userRole === "empleado") return;
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const fetchEmployerJobs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/job/?userId=${userId}`, {
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          const { offers } = await res.json();
+          setEmployerJobs(offers || []);
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    fetchEmployerJobs();
+  }, [sessionStatus, userRole, session?.user?.id]);
+
+  /* ---- Employer metrics ---- */
+  const activeOffers = employerJobs.length;
+  const totalApplications = employerJobs.reduce(
+    (sum, j) => sum + (j.candidatesCount || 0),
+    0
+  );
+  const featuredOffers = employerJobs.filter((j) => j.is_paid).length;
 
   /* ---- Cancel application ---- */
   const confirmCancelApplication = async () => {
@@ -277,6 +312,54 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       {/* ---- EMPLEADOR / ADMIN view ---- */}
       {userRole !== "empleado" && (
         <Box sx={{ maxWidth: 600, mx: "auto", mt: 4, px: 2 }}>
+          {/* Metrics row */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[
+              {
+                value: activeOffers,
+                label: "Ofertas Activas",
+                icon: <AssignmentIcon sx={{ fontSize: 28 }} />,
+                color: "primary.main",
+              },
+              {
+                value: totalApplications,
+                label: "Postulaciones",
+                icon: <PeopleAltIcon sx={{ fontSize: 28 }} />,
+                color: "secondary.main",
+              },
+              {
+                value: featuredOffers,
+                label: "Destacadas",
+                icon: <StarIcon sx={{ fontSize: 28 }} />,
+                color: "warning.main",
+              },
+            ].map((stat) => (
+              <Grid item xs={4} key={stat.label}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    textAlign: "center",
+                    borderRadius: 2,
+                    bgcolor: "background.paper",
+                  }}
+                >
+                  <Box sx={{ color: stat.color, mb: 0.5 }}>{stat.icon}</Box>
+                  <Typography
+                    variant="h4"
+                    fontWeight={700}
+                    color={stat.color}
+                  >
+                    {stat.value}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {stat.label}
+                  </Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+
           <PageHeader title="Opciones de Empleador" sx={{ mt: 0 }} />
           <Grid container spacing={2}>
             {empleadorMenuItems.map((item) => (

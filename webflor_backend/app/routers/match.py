@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
+from pydantic import BaseModel
 
 from app.database import get_db_connection
 from app.core.auth import SECRET_KEY, ALGORITHM
@@ -31,6 +32,29 @@ NOTIFY_THRESHOLD: float = float(os.getenv("NOTIFY_THRESHOLD", "0.78"))
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/match", tags=["matchings"])
+
+
+# ─────────────────── Response models ────────────────────
+
+class MatchJobInfo(BaseModel):
+    id: int
+    title: str
+    rubro: str | None = None
+
+class MatchUserInfo(BaseModel):
+    id: int
+    email: str | None = None
+    name: str | None = None
+    rubro: str | None = None
+
+class MatchItem(BaseModel):
+    """Un match entre candidato y oferta."""
+    id: int
+    score: float
+    sent_at: str | None = None
+    status: str | None = None
+    job: MatchJobInfo
+    user: MatchUserInfo
 
 
 def get_current_admin(token: str = Depends(oauth2_admin)) -> str:
@@ -197,7 +221,7 @@ def run_matching_for_user(user_id: int) -> None:
 
 # ═══════════ Admin Panel ═══════════
 
-@router.get("/admin", dependencies=[Depends(get_current_admin)], summary="List matches")
+@router.get("/admin", dependencies=[Depends(get_current_admin)], response_model=List[MatchItem], summary="List matches")
 def list_matchings(
     min_score: float = Query(MATCH_THRESHOLD, ge=0, le=1, description="Minimum score filter"),
     rubro: str = Query(None, description="Filter by rubro"),
