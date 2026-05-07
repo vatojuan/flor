@@ -340,7 +340,7 @@ export default function MainLayout({ children }) {
         {children}
       </Box>
 
-      <Footer />
+      {!isHomePage && <Footer />}
 
       {/* Botón flotante de WhatsApp con animación */}
       <Box sx={{ position: "fixed", bottom: 24, right: 24, zIndex: 1200 }}>
