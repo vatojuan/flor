@@ -152,10 +152,10 @@ export default function Outsourcing() {
           <Grid container spacing={3}>
             {comoFunciona.map((item) => (
               <Grid item xs={12} sm={6} md={3} key={item.paso}>
-                <Paper sx={{ p: 3, textAlign: "center", height: "100%", borderTop: "4px solid #D96236" }}>
+                <Paper sx={{ p: 3, textAlign: "center", height: "100%", borderTop: "4px solid #D96236", backgroundColor: "#12383C", color: "#FFF" }}>
                   <Typography variant="h3" color="primary" sx={{ fontWeight: 700, mb: 1 }}>{item.paso}</Typography>
                   <Typography variant="h6" sx={{ mb: 1 }}>{item.titulo}</Typography>
-                  <Typography variant="body2" color="text.secondary">{item.desc}</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>{item.desc}</Typography>
                 </Paper>
               </Grid>
             ))}
@@ -204,17 +204,32 @@ export default function Outsourcing() {
         </Box>
 
         {/* Formulario de solicitud */}
-        <Paper id="solicitar" sx={{ p: 4, borderRadius: 3, border: "2px solid #D96236" }}>
+        <Paper id="solicitar" sx={{
+          p: 4, borderRadius: 3, border: "2px solid #D96236",
+          backgroundColor: "rgba(16,59,64,0.85)", color: "#FFF",
+        }}>
           <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
             Solicitar Outsourcing
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ mb: 3, color: "rgba(255,255,255,0.7)" }}>
             Completá el formulario y nos ponemos en contacto para armar tu equipo.
             Sin compromiso, sin costo inicial.
           </Typography>
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary">Tu empresa</Typography>
+          <Box component="form" onSubmit={handleSubmit} sx={{
+            display: "flex", flexDirection: "column", gap: 2,
+            "& .MuiTextField-root, & .MuiFormControl-root": {
+              "& .MuiOutlinedInput-root": {
+                color: "#FFF",
+                "& fieldset": { borderColor: "rgba(255,255,255,0.3)" },
+                "&:hover fieldset": { borderColor: "rgba(255,255,255,0.5)" },
+                "&.Mui-focused fieldset": { borderColor: "#D96236" },
+              },
+              "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.6)" },
+              "& .MuiInputLabel-root.Mui-focused": { color: "#D96236" },
+            },
+          }}>
+            <Typography variant="subtitle2" sx={{ color: "rgba(255,255,255,0.6)" }}>Tu empresa</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField fullWidth required label="Nombre de la empresa" value={form.company_name} onChange={update("company_name")} />
@@ -230,8 +245,8 @@ export default function Outsourcing() {
               </Grid>
             </Grid>
 
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="subtitle2" color="text.secondary">Que personal necesitas</Typography>
+            <Divider sx={{ my: 1, backgroundColor: "rgba(255,255,255,0.15)" }} />
+            <Typography variant="subtitle2" sx={{ color: "rgba(255,255,255,0.6)" }}>Que personal necesitas</Typography>
 
             <TextField fullWidth required label="Puestos que necesitas" placeholder="ej: 3 mozos, 2 recepcionistas, 1 cocinero..."
               value={form.positions} onChange={update("positions")} />
@@ -240,7 +255,8 @@ export default function Outsourcing() {
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Duracion</InputLabel>
-                  <Select value={form.duration} label="Duracion" onChange={update("duration")}>
+                  <Select value={form.duration} label="Duracion" onChange={update("duration")}
+                    sx={{ color: "#FFF", "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.5)" } }}>
                     <MenuItem value="temporal">Temporal (dias/semanas)</MenuItem>
                     <MenuItem value="indefinido">Indefinido</MenuItem>
                     <MenuItem value="a definir">A definir</MenuItem>
@@ -265,7 +281,7 @@ export default function Outsourcing() {
               {submitting ? "Enviando..." : "Solicitar outsourcing (sin costo)"}
             </Button>
 
-            <Typography variant="caption" color="text.secondary" textAlign="center">
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }} textAlign="center">
               Un asesor de FAP se pondra en contacto para definir los detalles del servicio.
             </Typography>
           </Box>
