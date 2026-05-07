@@ -219,8 +219,8 @@ def run_regeneration_for_all_users():
                         continue
 
                 cur.execute(
-                    'UPDATE "User" SET name = %s, description = %s, phone = %s, embedding = %s WHERE id = %s',
-                    (new_name, description, new_phone, embedding_desc, user_id)
+                    'UPDATE "User" SET name = %s, description = %s, phone = %s, embedding = %s, rubro = %s WHERE id = %s',
+                    (new_name, description, new_phone, embedding_desc, cv_data["rubro"], user_id)
                 )
                 conn.commit()
                 logger.info("Perfil del usuario %s actualizado en la base de datos.", user_id)
