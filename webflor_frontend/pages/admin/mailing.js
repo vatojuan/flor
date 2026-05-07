@@ -58,7 +58,7 @@ function ContactsTab({ headers }) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/mailing/rubros`, { headers }).then(r => r.json()).then(setRubros).catch(() => {});
+    fetch(`${API_URL}/api/mailing/rubros`, { headers }).then(r => r.ok ? r.json() : []).then(d => setRubros(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -67,9 +67,9 @@ function ContactsTab({ headers }) {
     if (rubroFilter) params.append("rubro", rubroFilter);
     if (search) params.append("keyword", search);
     fetch(`${API_URL}/api/mailing/contacts?${params}`, { headers })
-      .then(r => r.json())
-      .then(data => { setContacts(data.contacts || []); setTotal(data.total || 0); })
-      .catch(() => {})
+      .then(r => r.ok ? r.json() : { contacts: [], total: 0 })
+      .then(data => { setContacts(Array.isArray(data.contacts) ? data.contacts : []); setTotal(data.total || 0); })
+      .catch(() => { setContacts([]); setTotal(0); })
       .finally(() => setLoading(false));
   }, [page, rubroFilter, search]);
 
@@ -147,7 +147,7 @@ function GroupsTab({ headers }) {
   const fetchGroups = () => {
     setLoading(true);
     fetch(`${API_URL}/api/mailing/groups`, { headers })
-      .then(r => r.json()).then(setGroups).catch(() => {})
+      .then(r => r.ok ? r.json() : []).then(d => setGroups(Array.isArray(d) ? d : [])).catch(() => { setGroups([]); })
       .finally(() => setLoading(false));
   };
 
@@ -296,7 +296,7 @@ function SendTab({ headers }) {
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/mailing/groups`, { headers }).then(r => r.json()).then(setGroups).catch(() => {});
+    fetch(`${API_URL}/api/mailing/groups`, { headers }).then(r => r.ok ? r.json() : []).then(d => setGroups(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   const handlePreview = async () => {
