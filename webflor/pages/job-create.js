@@ -46,7 +46,7 @@ export default function JobCreate() {
     e.preventDefault();
     setSubmitting(true);
 
-    const jwt = session?.accessToken || session?.token ||
+    const jwt = session?.accessToken || session?.user?.token ||
       (typeof window !== "undefined" && localStorage.getItem("userToken"));
 
     if (!jwt) {
