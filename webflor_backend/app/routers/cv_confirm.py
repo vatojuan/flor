@@ -16,6 +16,7 @@ import openai # Importar openai para manejar sus excepciones específicas
 from app.email_utils import send_credentials_email
 from app.utils.auth_utils import get_current_admin
 from app.database import get_db_connection
+from app.services.cv_extraction import extract_cv_data
 from pgvector.psycopg2 import register_vector
 import bcrypt
 import urllib.parse
@@ -190,43 +191,32 @@ def run_regeneration_for_all_users():
                     logger.warning("No se pudo extraer texto del CV para el usuario %s. Saltando.", user_id)
                     continue
                 
-                new_phone = extract_phone(text_content)
-                logger.info("Nuevo telefono extraido: %s", new_phone)
-
-                # --- Bloque de llamadas a OpenAI con manejo de errores ---
+                # --- Extracción estructurada con GPT-4 ---
                 try:
-                    new_name = extract_name(text_content)
+                    cv_data = extract_cv_data(text_content)
+                    new_name = cv_data["nombre"]
                     if not new_name:
-                        logger.warning("OpenAI no encontro un nombre valido. Se mantiene el nombre actual o se genera desde el email.")
-                        if current_name is None or "no encontrado" in current_name.lower() or "@" in current_name:
-                            new_name = user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
-                        else:
+                        if current_name and "no encontrado" not in current_name.lower() and "@" not in current_name:
                             new_name = current_name
-                    logger.info("Nuevo nombre: %s", new_name)
+                        else:
+                            new_name = user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
 
-                    description_prompt = [
-                        {"role": "system", "content": "Eres un analista de RR.HH. experto. Tu objetivo es crear un resumen profesional y atractivo basado exclusivamente en el CV. La longitud del resumen debe ser proporcional a la información útil del CV, sin rellenar y sin superar los 950 caracteres. Redacta en un tono profesional y directo."},
-                        {"role": "user", "content": f"Analiza y resume el siguiente CV:\n\n---\n{text_content[:4000]}\n---"}
-                    ]
-                    description_response = client.chat.completions.create(
-                        model="gpt-4-turbo", messages=description_prompt, max_tokens=700, temperature=0.6, top_p=1,
-                        frequency_penalty=0.1, presence_penalty=0.1
-                    )
-                    description = description_response.choices[0].message.content.strip()
-                    logger.info("Nueva descripcion generada (%d caracteres).", len(description))
+                    new_phone = cv_data["telefono"]
+                    description = cv_data["descripcion"] or ""
+                    habilidades = cv_data["habilidades"]
 
-                    embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=description)
+                    profile_text = f"{description} Habilidades: {', '.join(habilidades)}" if habilidades else description
+                    embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=profile_text)
                     embedding_desc = embedding_response_desc.data[0].embedding
-                    logger.info("Nuevo embedding de descripcion generado.")
+                    logger.info("Perfil regenerado: nombre=%s, rubro=%s", new_name, cv_data["rubro"])
 
                 except openai.APIStatusError as e:
                     if e.status_code == 429:
-                        logger.error("ERROR CRITICO: Cuota de OpenAI excedida. Deteniendo la tarea de regeneracion.")
-                        logger.error("Por favor, revisa tu plan y facturacion en platform.openai.com.")
-                        break 
+                        logger.error("Cuota de OpenAI excedida. Deteniendo regeneracion.")
+                        break
                     else:
-                        logger.error("ERROR de API de OpenAI procesando al usuario %s: %s. Saltando al siguiente usuario.", user_id, e)
-                        continue 
+                        logger.error("Error de OpenAI procesando usuario %s: %s", user_id, e)
+                        continue
 
                 cur.execute(
                     'UPDATE "User" SET name = %s, description = %s, phone = %s, embedding = %s WHERE id = %s',
@@ -309,52 +299,44 @@ async def confirm_email(code: str = Query(...)):
         if not text_content:
             raise HTTPException(status_code=400, detail="No se pudo extraer texto del CV")
         logger.info("Texto del CV obtenido (total de %d caracteres)", len(text_content))
-        
-        phone_number = extract_phone(text_content)
-        logger.info("Telefono extraido: %s", phone_number)
-        
-        # --- Bloque de llamadas a OpenAI con manejo de errores ---
+
+        # --- Extracción estructurada con GPT-4 ---
         try:
-            name_from_cv = extract_name(text_content)
+            cv_data = extract_cv_data(text_content)
+            name_from_cv = cv_data["nombre"]
             if not name_from_cv:
-                logger.warning("OpenAI no encontro el nombre en el CV, usando parte del email como referencia.")
                 name_from_cv = user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
-            logger.info("Nombre extraido con OpenAI: %s", name_from_cv)
+            phone_number = cv_data["telefono"]
+            description = cv_data["descripcion"] or ""
+            rubro = cv_data["rubro"]
+            habilidades = cv_data["habilidades"]
 
-            logger.info("Iniciando generacion de descripcion profesional y adaptativa...")
-            description_prompt = [
-                {"role": "system", "content": "Eres un analista de RR.HH. experto. Tu objetivo es crear un resumen profesional y atractivo basado exclusivamente en el CV. La longitud del resumen debe ser proporcional a la información útil del CV, sin rellenar y sin superar los 950 caracteres. Redacta en un tono profesional y directo."},
-                {"role": "user", "content": f"Analiza y resume el siguiente CV:\n\n---\n{text_content[:4000]}\n---"}
-            ]
-            description_response = client.chat.completions.create(
-                model="gpt-4-turbo", messages=description_prompt, max_tokens=700, temperature=0.6, top_p=1,
-                frequency_penalty=0.1, presence_penalty=0.1
-            )
-            description = description_response.choices[0].message.content.strip()
-            logger.info("Descripcion generada (%d caracteres).", len(description))
+            logger.info("Datos extraidos: nombre=%s, rubro=%s, habilidades=%d", name_from_cv, rubro, len(habilidades))
 
-            embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=text_content)
+            # Embedding del CV completo para matching
+            embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=text_content[:8000])
             embedding_cv = embedding_response.data[0].embedding
-            logger.info("Embedding del CV generado exitosamente")
 
-            embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=description)
+            # Embedding combinado (descripción + habilidades) para perfil
+            profile_text = f"{description} Habilidades: {', '.join(habilidades)}" if habilidades else description
+            embedding_response_desc = client.embeddings.create(model="text-embedding-ada-002", input=profile_text)
             embedding_desc = embedding_response_desc.data[0].embedding
-            logger.info("Embedding de la descripcion generado exitosamente")
+            logger.info("Embeddings generados exitosamente")
 
         except openai.APIStatusError as e:
             if e.status_code == 429:
-                raise HTTPException(status_code=429, detail="La cuota de OpenAI ha sido excedida. No se pudo procesar el perfil. Por favor, contacta al administrador.")
+                raise HTTPException(status_code=429, detail="La cuota de OpenAI ha sido excedida. Contacta al administrador.")
             else:
-                raise HTTPException(status_code=500, detail=f"Ocurrió un error con la API de OpenAI: {e}")
+                raise HTTPException(status_code=500, detail="Error procesando el CV con OpenAI")
 
         plain_password, hashed_password = generate_secure_password()
         logger.info("Contrasena segura generada y hasheada")
 
         cur.execute(
-            'INSERT INTO "User" (email, name, role, description, phone, password, confirmed, "cvUrl", embedding) VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s) '
+            'INSERT INTO "User" (email, name, role, description, phone, password, confirmed, "cvUrl", embedding, rubro) VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s) '
             'ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, phone = EXCLUDED.phone, '
-            'password = EXCLUDED.password, confirmed = TRUE, "cvUrl" = EXCLUDED."cvUrl", embedding = EXCLUDED.embedding RETURNING id',
-            (user_email, name_from_cv, "empleado", description, phone_number, hashed_password, new_cv_url, embedding_desc)
+            'password = EXCLUDED.password, confirmed = TRUE, "cvUrl" = EXCLUDED."cvUrl", embedding = EXCLUDED.embedding, rubro = EXCLUDED.rubro RETURNING id',
+            (user_email, name_from_cv, "empleado", description, phone_number, hashed_password, new_cv_url, embedding_desc, rubro)
         )
         user_id = cur.fetchone()[0]
         conn.commit()
