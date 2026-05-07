@@ -40,6 +40,7 @@ import SendIcon from "@mui/icons-material/Send";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import InboxIcon from "@mui/icons-material/Inbox";
+import LogoutIcon from "@mui/icons-material/Logout";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
@@ -338,6 +339,13 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
               </Link>
             )}
             <Box sx={{ flexGrow: 1 }} />
+            <IconButton
+              onClick={() => { localStorage.removeItem("adminToken"); router.push("/admin/login"); }}
+              sx={{ color: "#fff", mr: 1 }}
+              title="Cerrar sesion"
+            >
+              <LogoutIcon />
+            </IconButton>
             <IconButton onClick={handleNotifOpen} sx={{ color: "#fff", mr: 2 }}>
               <Badge badgeContent={unreadCount} color="error" max={99}>
                 <NotificationsIcon />
