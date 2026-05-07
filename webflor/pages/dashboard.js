@@ -158,7 +158,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
   if (sessionStatus === "loading" || !userRole) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: "#D96236" }} />
       </Box>
     );
   }
@@ -205,22 +205,30 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       userRole={userRole}
     >
       {/* Avatar + welcome */}
-      <Box sx={{ textAlign: "center", mt: 4 }}>
+      <Box sx={{ textAlign: "center", mt: 4, mb: 3 }}>
         <Avatar
           src={session?.user?.image || "/images/default-user.png"}
           sx={{
-            width: 100,
-            height: 100,
-            border: `2px solid ${theme.palette.divider}`,
+            width: 110,
+            height: 110,
+            border: "3px solid rgba(217, 98, 54, 0.4)",
             mx: "auto",
             mb: 2,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
           }}
         />
-        <Typography variant="h6">
+        <Typography variant="h5" sx={{ color: "#FFF", fontWeight: 600 }}>
           Bienvenido, {session?.user?.name || "Usuario"}
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Tu rol: {userRole}
+        <Typography
+          variant="body1"
+          sx={{
+            color: "rgba(255,255,255,0.5)",
+            mt: 0.5,
+            textTransform: "capitalize",
+          }}
+        >
+          {userRole}
         </Typography>
       </Box>
 
@@ -236,6 +244,14 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                   component={Link}
                   href="/job-list"
                   startIcon={<WorkIcon />}
+                  sx={{
+                    py: 1.3,
+                    borderRadius: "12px",
+                    backgroundColor: "#D96236",
+                    fontWeight: 600,
+                    "&:hover": { backgroundColor: "#B0482B", transform: "translateY(-1px)" },
+                    transition: "all 0.2s ease",
+                  }}
                 >
                   Ver Ofertas
                 </Button>
@@ -247,6 +263,22 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                   component={Link}
                   href="/profile-empleado"
                   startIcon={<PersonIcon />}
+                  sx={{
+                    py: 1.3,
+                    borderRadius: "12px",
+                    borderColor: "rgba(255,255,255,0.3)",
+                    color: "#FFF",
+                    borderWidth: "2px",
+                    fontWeight: 600,
+                    "&:hover": {
+                      borderColor: "#D96236",
+                      color: "#D96236",
+                      backgroundColor: "rgba(217,98,54,0.08)",
+                      borderWidth: "2px",
+                      transform: "translateY(-1px)",
+                    },
+                    transition: "all 0.2s ease",
+                  }}
                 >
                   Actualizar Perfil
                 </Button>
@@ -260,13 +292,16 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
               mx: "auto",
               mt: 4,
               p: 3,
-              borderRadius: 2,
+              borderRadius: 3,
+              backgroundColor: "rgba(16, 59, 64, 0.5)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              backdropFilter: "blur(8px)",
             }}
           >
-            <PageHeader title="Mis Postulaciones" sx={{ mt: 0, px: 0 }} />
+            <PageHeader title="Mis Postulaciones" sx={{ mt: 0, px: 0, "& .MuiTypography-root": { color: "#FFF" } }} />
 
             {applications.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
                 No has postulado a ningun empleo.
               </Typography>
             ) : (
@@ -323,48 +358,58 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
 
       {/* ---- EMPLEADOR / ADMIN view ---- */}
       {userRole !== "empleado" && (
-        <Box sx={{ maxWidth: 600, mx: "auto", mt: 4, px: 2 }}>
+        <Box sx={{ maxWidth: 700, mx: "auto", mt: 4, px: 2 }}>
           {/* Metrics row */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 4 }}>
             {[
               {
                 value: activeOffers,
                 label: "Ofertas Activas",
-                icon: <AssignmentIcon sx={{ fontSize: 28 }} />,
-                color: "primary.main",
+                icon: <AssignmentIcon sx={{ fontSize: 30 }} />,
+                color: "#D96236",
               },
               {
                 value: totalApplications,
                 label: "Postulaciones",
-                icon: <PeopleAltIcon sx={{ fontSize: 28 }} />,
-                color: "secondary.main",
+                icon: <PeopleAltIcon sx={{ fontSize: 30 }} />,
+                color: "#26A69A",
               },
               {
                 value: featuredOffers,
                 label: "Destacadas",
-                icon: <StarIcon sx={{ fontSize: 28 }} />,
-                color: "warning.main",
+                icon: <StarIcon sx={{ fontSize: 30 }} />,
+                color: "#FFB300",
               },
             ].map((stat) => (
               <Grid item xs={4} key={stat.label}>
                 <Paper
-                  elevation={1}
+                  elevation={0}
                   sx={{
-                    p: 2,
+                    p: 2.5,
                     textAlign: "center",
-                    borderRadius: 2,
-                    bgcolor: "background.paper",
+                    borderRadius: 3,
+                    backgroundColor: "rgba(16, 59, 64, 0.6)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(8px)",
+                    transition: "all 0.25s ease",
+                    "&:hover": {
+                      backgroundColor: "rgba(16, 59, 64, 0.8)",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+                    },
                   }}
                 >
-                  <Box sx={{ color: stat.color, mb: 0.5 }}>{stat.icon}</Box>
+                  <Box sx={{ color: stat.color, mb: 1 }}>{stat.icon}</Box>
                   <Typography
-                    variant="h4"
-                    fontWeight={700}
-                    color={stat.color}
+                    variant="h3"
+                    sx={{ fontWeight: 700, color: stat.color, lineHeight: 1 }}
                   >
                     {stat.value}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem" }}
+                  >
                     {stat.label}
                   </Typography>
                 </Paper>
@@ -372,26 +417,48 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
             ))}
           </Grid>
 
-          <PageHeader title="Opciones de Empleador" sx={{ mt: 0 }} />
+          <PageHeader
+            title="Opciones de Empleador"
+            sx={{ mt: 0, "& .MuiTypography-root": { color: "#FFF" } }}
+          />
           <Grid container spacing={2}>
             {empleadorMenuItems.map((item) => (
-              <Grid item xs={12} sm={4} key={item.href}>
+              <Grid item xs={6} sm={4} key={item.href}>
                 <Card
                   sx={{
                     textAlign: "center",
-                    transition: "box-shadow 0.2s, transform 0.2s",
+                    borderRadius: 3,
+                    backgroundColor: "rgba(16, 59, 64, 0.5)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    transition: "all 0.25s ease",
                     "&:hover": {
-                      boxShadow: theme.shadows[4],
-                      transform: "translateY(-2px)",
+                      backgroundColor: "rgba(217, 98, 54, 0.15)",
+                      borderColor: "rgba(217, 98, 54, 0.3)",
+                      transform: "translateY(-3px)",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
                     },
                   }}
                 >
-                  <CardActionArea component={Link} href={item.href}>
+                  <CardActionArea
+                    component={Link}
+                    href={item.href}
+                    sx={{ py: 1 }}
+                  >
                     <CardContent>
-                      <Box sx={{ color: "primary.main", mb: 1 }}>
+                      <Box
+                        sx={{
+                          color: "#D96236",
+                          mb: 1.5,
+                          transition: "transform 0.2s ease",
+                          ".MuiCardActionArea-root:hover &": { transform: "scale(1.1)" },
+                        }}
+                      >
                         {item.icon}
                       </Box>
-                      <Typography variant="subtitle1" fontWeight={500}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 600, color: "#FFF", fontSize: "0.9rem" }}
+                      >
                         {item.label}
                       </Typography>
                     </CardContent>
@@ -404,14 +471,27 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       )}
 
       {/* Sign out */}
-      <Box sx={{ textAlign: "center", mt: 4, mb: 2 }}>
+      <Box sx={{ textAlign: "center", mt: 5, mb: 3 }}>
         <Button
           onClick={handleSignOut}
-          variant="contained"
-          color="error"
+          variant="outlined"
           startIcon={<LogoutIcon />}
+          sx={{
+            borderRadius: "24px",
+            px: 3,
+            py: 1,
+            borderColor: "rgba(255,255,255,0.2)",
+            color: "rgba(255,255,255,0.6)",
+            fontWeight: 600,
+            transition: "all 0.2s ease",
+            "&:hover": {
+              borderColor: "#ef5350",
+              color: "#ef5350",
+              backgroundColor: "rgba(239, 83, 80, 0.08)",
+            },
+          }}
         >
-          Cerrar sesion
+          Cerrar sesión
         </Button>
       </Box>
 
