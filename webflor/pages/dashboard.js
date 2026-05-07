@@ -214,16 +214,16 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
             border: "3px solid rgba(217, 98, 54, 0.4)",
             mx: "auto",
             mb: 2,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
           }}
         />
-        <Typography variant="h5" sx={{ color: "#FFF", fontWeight: 600 }}>
+        <Typography variant="h5" sx={{ color: "text.primary", fontWeight: 600 }}>
           Bienvenido, {session?.user?.name || "Usuario"}
         </Typography>
         <Typography
           variant="body1"
           sx={{
-            color: "rgba(255,255,255,0.5)",
+            color: "text.secondary",
             mt: 0.5,
             textTransform: "capitalize",
           }}
@@ -266,8 +266,8 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                   sx={{
                     py: 1.3,
                     borderRadius: "12px",
-                    borderColor: "rgba(255,255,255,0.3)",
-                    color: "#FFF",
+                    borderColor: "divider",
+                    color: "text.primary",
                     borderWidth: "2px",
                     fontWeight: 600,
                     "&:hover": {
@@ -293,15 +293,15 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
               mt: 4,
               p: 3,
               borderRadius: 3,
-              backgroundColor: "rgba(16, 59, 64, 0.5)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              backdropFilter: "blur(8px)",
+              backgroundColor: "background.paper",
+              border: "1px solid",
+              borderColor: "divider",
             }}
           >
-            <PageHeader title="Mis Postulaciones" sx={{ mt: 0, px: 0, "& .MuiTypography-root": { color: "#FFF" } }} />
+            <PageHeader title="Mis Postulaciones" sx={{ mt: 0, px: 0 }} />
 
             {applications.length === 0 ? (
-              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
+              <Typography variant="body2" color="text.secondary">
                 No has postulado a ningun empleo.
               </Typography>
             ) : (
@@ -383,19 +383,18 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
             ].map((stat) => (
               <Grid item xs={4} key={stat.label}>
                 <Paper
-                  elevation={0}
+                  elevation={1}
                   sx={{
                     p: 2.5,
                     textAlign: "center",
                     borderRadius: 3,
-                    backgroundColor: "rgba(16, 59, 64, 0.6)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(8px)",
+                    backgroundColor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
                     transition: "all 0.25s ease",
                     "&:hover": {
-                      backgroundColor: "rgba(16, 59, 64, 0.8)",
                       transform: "translateY(-2px)",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+                      boxShadow: 4,
                     },
                   }}
                 >
@@ -408,7 +407,8 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem" }}
+                    color="text.secondary"
+                    sx={{ fontSize: "0.8rem" }}
                   >
                     {stat.label}
                   </Typography>
@@ -419,23 +419,24 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
 
           <PageHeader
             title="Opciones de Empleador"
-            sx={{ mt: 0, "& .MuiTypography-root": { color: "#FFF" } }}
+            sx={{ mt: 0 }}
           />
           <Grid container spacing={2}>
             {empleadorMenuItems.map((item) => (
               <Grid item xs={6} sm={4} key={item.href}>
                 <Card
+                  elevation={1}
                   sx={{
                     textAlign: "center",
                     borderRadius: 3,
-                    backgroundColor: "rgba(16, 59, 64, 0.5)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    backgroundColor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
                     transition: "all 0.25s ease",
                     "&:hover": {
-                      backgroundColor: "rgba(217, 98, 54, 0.15)",
-                      borderColor: "rgba(217, 98, 54, 0.3)",
+                      borderColor: "primary.main",
                       transform: "translateY(-3px)",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                      boxShadow: 4,
                     },
                   }}
                 >
@@ -447,7 +448,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                     <CardContent>
                       <Box
                         sx={{
-                          color: "#D96236",
+                          color: "primary.main",
                           mb: 1.5,
                           transition: "transform 0.2s ease",
                           ".MuiCardActionArea-root:hover &": { transform: "scale(1.1)" },
@@ -457,7 +458,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
                       </Box>
                       <Typography
                         variant="subtitle2"
-                        sx={{ fontWeight: 600, color: "#FFF", fontSize: "0.9rem" }}
+                        sx={{ fontWeight: 600, color: "text.primary", fontSize: "0.9rem" }}
                       >
                         {item.label}
                       </Typography>
@@ -480,8 +481,8 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
             borderRadius: "24px",
             px: 3,
             py: 1,
-            borderColor: "rgba(255,255,255,0.2)",
-            color: "rgba(255,255,255,0.6)",
+            borderColor: "divider",
+            color: "text.secondary",
             fontWeight: 600,
             transition: "all 0.2s ease",
             "&:hover": {

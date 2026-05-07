@@ -244,7 +244,7 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
   ];
 
   return (
-    <Box sx={{ display: "flex", backgroundColor: isDark ? "#0A1F22" : "#0E3339" }}>
+    <Box sx={{ display: "flex", backgroundColor: "background.default" }}>
       <Drawer variant="permanent" open={open} drawerbg={drawerBg}>
         <DrawerHeader sx={{ px: 2 }}>
           {open && (

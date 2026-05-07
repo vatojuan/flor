@@ -111,8 +111,8 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
 
   if (status === "loading" || !userRole) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "#0B2A2D" }}>
-        <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>Cargando...</Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "background.default" }}>
+        <Typography sx={{ color: "text.secondary" }}>Cargando...</Typography>
       </Box>
     );
   }
@@ -153,7 +153,7 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
       ];
 
   return (
-    <Box sx={{ display: "flex", backgroundColor: isDark ? "#0A1F22" : "#0E3339" }}>
+    <Box sx={{ display: "flex", backgroundColor: "background.default" }}>
       <Drawer variant="permanent" open={open} drawerbg={drawerBg}>
         <DrawerHeader sx={{ minHeight: 72, px: 2 }}>
           {open && (

@@ -26,18 +26,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 function StatCard({ icon, value, label, accentColor }) {
   return (
     <Card
-      elevation={0}
+      elevation={1}
       sx={{
         height: "100%",
         borderRadius: 3,
-        backgroundColor: "rgba(16, 59, 64, 0.5)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(8px)",
+        backgroundColor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
         transition: "all 0.25s ease",
         "&:hover": {
-          backgroundColor: "rgba(16, 59, 64, 0.7)",
           transform: "translateY(-3px)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+          boxShadow: 4,
         },
       }}
     >
@@ -50,7 +49,7 @@ function StatCard({ icon, value, label, accentColor }) {
             width: 56,
             height: 56,
             borderRadius: "14px",
-            backgroundColor: `${accentColor}20`,
+            backgroundColor: `${accentColor}18`,
             color: accentColor,
             flexShrink: 0,
             transition: "transform 0.2s ease",
@@ -59,10 +58,10 @@ function StatCard({ icon, value, label, accentColor }) {
           {icon}
         </Box>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFF" }}>
-            {value !== null ? value : <CircularProgress size={24} sx={{ color: "#D96236" }} />}
+          <Typography variant="h4" sx={{ fontWeight: 700, color: "text.primary" }}>
+            {value !== null ? value : <CircularProgress size={24} sx={{ color: "primary.main" }} />}
           </Typography>
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
+          <Typography variant="body2" color="text.secondary">
             {label}
           </Typography>
         </Box>
@@ -153,10 +152,10 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
   return (
     <DashboardLayout toggleDarkMode={toggleDarkMode} currentMode={currentMode}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFF" }} gutterBottom>
+        <Typography variant="h4" sx={{ fontWeight: 700, color: "text.primary" }} gutterBottom>
           Dashboard Administrativo
         </Typography>
-        <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)" }}>
+        <Typography variant="body1" color="text.secondary">
           Resumen general de la plataforma FAP RRHH
         </Typography>
       </Box>
@@ -176,7 +175,7 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
       </Grid>
 
       <Box>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: "#FFF", mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary", mb: 2 }}>
           Acciones Rápidas
         </Typography>
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -190,8 +189,8 @@ export default function AdminDashboard({ toggleDarkMode, currentMode }) {
                 borderRadius: "12px",
                 px: 3,
                 py: 1.2,
-                borderColor: "rgba(255,255,255,0.2)",
-                color: "rgba(255,255,255,0.8)",
+                borderColor: "divider",
+                color: "text.primary",
                 fontWeight: 600,
                 borderWidth: "2px",
                 transition: "all 0.25s ease",
