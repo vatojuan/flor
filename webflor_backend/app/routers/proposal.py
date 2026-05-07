@@ -20,6 +20,7 @@ from app.database import engine
 # Importaciones centralizadas para la comunicación
 from app.email_utils import (
     send_proposal_to_employer,
+    send_application_confirmation,
     send_cancellation_warning,
     send_admin_alert,
 )
@@ -251,16 +252,24 @@ def deliver(proposal_id: int, sleep_first: bool) -> None:
 
         send_proposal_to_employer(final_contact_email, context)
 
+        # Confirmar al candidato que su postulación fue enviada
+        if applicant_email:
+            try:
+                send_application_confirmation(applicant_email, {
+                    "applicant_name": applicant_name,
+                    "job_title": job_title,
+                })
+            except Exception as conf_err:
+                logger.error("Failed to send confirmation to applicant: %s", conf_err)
+
         final_contact_phone = contact_phone or employer_phone
         if final_contact_phone:
-            logger.info(f"📲 (Simulado) WhatsApp a {final_contact_phone}: Nueva propuesta para «{job_title}».")
-        else:
-            logger.info("No hay teléfono de contacto para WhatsApp (ok).")
+            logger.info("WhatsApp (simulado) a %s: Nueva propuesta para %s", final_contact_phone, job_title)
 
         # 7) Marcar como enviada
         cur.execute("UPDATE proposals SET status='sent', sent_at=NOW() WHERE id=%s", (proposal_id,))
         conn.commit()
-        logger.info(f"✅ Propuesta {proposal_id} enviada exitosamente a {final_contact_email}.")
+        logger.info("Propuesta %s enviada exitosamente a %s", proposal_id, final_contact_email)
 
     except Exception as e:
         if conn:
