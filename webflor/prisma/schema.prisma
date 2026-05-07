@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model LegalDocument {
+  id           Int      @id @default(autoincrement())
+  url          String
+  fileKey      String   // <-- Nuevo campo para almacenar la clave del archivo
+  createdAt    DateTime @default(now())
+  userId       Int
+  originalName String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeDocument {
+  id           Int      @id @default(autoincrement())
+  url          String
+  fileKey      String?  // Ahora es opcional
+  createdAt    DateTime @default(now())
+  userId       Int
+  originalName String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  jobId     Int
+  userId    Int
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Job {
+  id             Int       @id @default(autoincrement())
+  title          String
+  description    String
+  requirements   String?       
+  createdAt      DateTime  @default(now())
+  expirationDate DateTime? // Nuevo campo para la fecha de expiración (opcional)
+  userId         Int
+  applications   Application[]
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embedding      Float[]   // Campo existente
+}
+
+model User {
+  id                      Int                @id @default(autoincrement())
+  email                   String             @unique
+  name                    String
+  password                String?
+  verificationCode        String?  
+  codeExpiration          DateTime?
+  verified                Boolean            @default(false)
+  role                    String?
+  confirmed               Boolean            @default(false)
+  verificationAttempts    Int                @default(0)
+  resendCount             Int                @default(0)
+  lastResend              DateTime?
+  createdAt               DateTime           @default(now())
+  googleId                String?
+  companyName             String?
+  description             String?            // 📝 Descripción del usuario
+  phone                   String?
+  profilePicture          String?
+  profilePictureFileName  String?
+  cvUrl                   String?
+  embedding               Float[]           // 📌 Nuevo campo para el embedding
+  applications            Application[]
+  employeeDocuments       EmployeeDocument[]
+  jobs                    Job[]
+  legalDocuments          LegalDocument[]
+  resetToken              String?
+  resetTokenExpiration    DateTime?
+}
+
+model FileEmbedding {
+  id         Int      @id @default(autoincrement())
+  fileKey    String   @unique
+  embedding  Float[]
+  createdAt  DateTime @default(now())
+}

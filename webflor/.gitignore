@@ -43,6 +43,5 @@ next-env.d.ts
 # Ignorar service-account.json (credenciales de Google Cloud)
 service-account.json
 
-schema.prisma
-
-/prisma/
+prisma/dev.db
+prisma/migrations/
