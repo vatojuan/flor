@@ -48,7 +48,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } })
           },
           background: {
             default: mode === "light" ? "#F2E6CE" : "#2B1B17",
-            paper: mode === "light" ? "#FFFFFF" : "#3E2723",
+            paper: mode === "light" ? "#FAF3E8" : "#3E2723",
           },
           text: {
             primary: mode === "light" ? "#3E2723" : "#FAD9CF",

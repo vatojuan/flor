@@ -76,11 +76,11 @@ export default function BusquedaServicio() {
           <Grid container spacing={4}>
             {/* Left: Plans comparison */}
             <Grid item xs={12} md={5}>
-              <Typography variant="h5" fontWeight={600} gutterBottom>
+              <Typography variant="h5" fontWeight={600} gutterBottom color="text.primary">
                 Dos niveles de servicio
               </Typography>
 
-              <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+              <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   <SearchIcon sx={{ mr: 1, verticalAlign: "middle", color: "primary.main" }} />
                   Busqueda — $50.000
@@ -101,7 +101,7 @@ export default function BusquedaServicio() {
                 </List>
               </Paper>
 
-              <Paper sx={{ p: 3, borderRadius: 2, border: "2px solid #D96236" }}>
+              <Paper elevation={1} sx={{ p: 3, borderRadius: 2, border: "2px solid #D96236", bgcolor: "background.paper" }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   <StarIcon sx={{ mr: 1, verticalAlign: "middle", color: "#FFB300" }} />
                   Seleccion completa — $120.000
@@ -128,7 +128,7 @@ export default function BusquedaServicio() {
 
             {/* Right: Form */}
             <Grid item xs={12} md={7}>
-              <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Paper elevation={1} sx={{ p: 4, borderRadius: 3, bgcolor: "background.paper" }}>
                 <Typography variant="h5" fontWeight={600} gutterBottom>
                   Solicitar servicio
                 </Typography>

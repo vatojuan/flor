@@ -67,7 +67,7 @@ const Drawer = styled(MuiDrawer, {
   position: "fixed",
   height: "100vh",
   "& .MuiDrawer-paper": {
-    backgroundColor: drawerbg,
+    background: drawerbg,
     color: "#fff",
     borderRight: "1px solid rgba(255,255,255,0.06)",
     ...(open ? openedMixin(theme) : closedMixin(theme)),
