@@ -8,10 +8,11 @@ import {
 } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import WorkIcon from "@mui/icons-material/Work";
+import DashboardLayout from "../components/DashboardLayout";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-export default function JobCreate() {
+export default function JobCreate({ toggleDarkMode, currentMode }) {
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -114,6 +115,7 @@ export default function JobCreate() {
   }
 
   return (
+    <DashboardLayout toggleDarkMode={toggleDarkMode} currentMode={currentMode}>
     <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
         Publicar Oferta
@@ -194,5 +196,6 @@ export default function JobCreate() {
         </Alert>
       </Snackbar>
     </Container>
+    </DashboardLayout>
   );
 }
