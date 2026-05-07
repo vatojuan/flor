@@ -31,6 +31,15 @@ export default function AgentePage() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Auto-fill from service request redirect
+  useEffect(() => {
+    const preMsg = localStorage.getItem("agentPreMessage");
+    if (preMsg) {
+      localStorage.removeItem("agentPreMessage");
+      setInput(preMsg);
+    }
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

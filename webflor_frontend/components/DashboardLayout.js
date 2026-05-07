@@ -30,6 +30,7 @@ import SchoolIcon from "@mui/icons-material/School";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SendIcon from "@mui/icons-material/Send";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
@@ -129,6 +130,7 @@ export default function DashboardLayout({ children, toggleDarkMode, currentMode 
     { text: "BD e-mails", icon: <EmailIcon />, href: "/admin/bd_emails" },
     { text: "Mailing", icon: <SendIcon />, href: "/admin/mailing" },
     { text: "Screenshot", icon: <CameraAltIcon />, href: "/admin/screenshot_oferta" },
+    { text: "Solicitudes", icon: <RequestQuoteIcon />, href: "/admin/solicitudes" },
     { text: "Asistente FAP", icon: <SmartToyIcon />, href: "/admin/agente" },
     { text: "Configuraciones", icon: <SettingsIcon />, href: "/admin/configuraciones" },
   ];

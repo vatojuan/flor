@@ -23,6 +23,7 @@ from app.routers import (
     mailing,
     payments,
     screenshot_to_job,
+    service_requests,
     users,
     webhooks,
     job,
@@ -79,6 +80,7 @@ app.include_router(auth.router)
 app.include_router(mailing.router)
 app.include_router(payments.router)
 app.include_router(screenshot_to_job.router)
+app.include_router(service_requests.router)
 app.include_router(cv_confirm.router)
 app.include_router(cv_upload.router)
 app.include_router(files.router)
