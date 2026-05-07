@@ -83,6 +83,22 @@ export default function InboxPage() {
     }
   };
 
+  const handleFirstSync = async () => {
+    if (!confirm("Primera sincronizacion: esto va a leer TODOS los emails (leidos y no leidos) de todas las cuentas y procesar los CVs. Puede tardar varios minutos. Continuar?")) return;
+    setScanning("sync");
+    setScanResults(null);
+    try {
+      const res = await fetch(`${API_URL}/api/inbox/scan-all?scan_all=true&max_emails=500`, { method: "POST", headers });
+      const data = await res.json();
+      setScanResults(data);
+      fetchAccounts();
+    } catch (e) {
+      setResult({ severity: "error", text: "Error en sincronizacion" });
+    } finally {
+      setScanning(null);
+    }
+  };
+
   const handleScanAll = async () => {
     setScanning("all");
     setScanResults(null);
@@ -106,10 +122,15 @@ export default function InboxPage() {
             <InboxIcon sx={{ mr: 1, verticalAlign: "middle" }} />
             Bandejas de Entrada
           </Typography>
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button variant="outlined" color="warning"
+              startIcon={scanning === "sync" ? <CircularProgress size={16} /> : <SyncIcon />}
+              onClick={handleFirstSync} disabled={!!scanning || accounts.length === 0}>
+              Primera sincronizacion
+            </Button>
             <Button variant="outlined" startIcon={scanning === "all" ? <CircularProgress size={16} /> : <SyncIcon />}
               onClick={handleScanAll} disabled={!!scanning || accounts.length === 0}>
-              Escanear todas
+              Escanear nuevos
             </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
               Agregar cuenta

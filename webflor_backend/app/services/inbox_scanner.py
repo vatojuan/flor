@@ -31,7 +31,7 @@ CLASSIFY_PROMPT = """Clasifica este email en UNA de estas categorias:
 Responde SOLO con la categoria (una palabra)."""
 
 
-def scan_inbox(account_config: dict, max_emails: int = 20) -> dict:
+def scan_inbox(account_config: dict, max_emails: int = 20, scan_all: bool = False) -> dict:
     """
     Scan an email inbox for new unprocessed emails.
 
@@ -55,8 +55,9 @@ def scan_inbox(account_config: dict, max_emails: int = 20) -> dict:
         mail.login(account_config["email"], account_config["password"])
         mail.select(account_config.get("label", "INBOX"))
 
-        # Search for unseen emails
-        status, messages = mail.search(None, "UNSEEN")
+        # Search emails: ALL for first sync, UNSEEN for regular scans
+        search_criteria = "ALL" if scan_all else "UNSEEN"
+        status, messages = mail.search(None, search_criteria)
         if status != "OK":
             return {"error": "No se pudo buscar emails"}
 

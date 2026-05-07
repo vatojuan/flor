@@ -3,7 +3,7 @@
 Email inbox management — configure accounts and trigger scans.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
 from typing import Optional
 
@@ -86,8 +86,8 @@ def delete_account(account_id: int):
 
 
 @router.post("/scan/{account_id}", dependencies=[Depends(get_current_admin)])
-def trigger_scan(account_id: int, background_tasks: BackgroundTasks):
-    """Manually trigger a scan of a specific email account."""
+def trigger_scan(account_id: int, scan_all: bool = Query(False, description="True para primera sincronizacion (lee todos los emails, no solo nuevos)"), max_emails: int = Query(20, description="Cantidad maxima de emails a procesar")):
+    """Manually trigger a scan. Use scan_all=true for first-time sync of all historical emails."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -104,8 +104,7 @@ def trigger_scan(account_id: int, background_tasks: BackgroundTasks):
         cur.close()
         conn.close()
 
-        # Run scan synchronously for immediate feedback
-        results = scan_inbox(account_config)
+        results = scan_inbox(account_config, max_emails=max_emails, scan_all=scan_all)
 
         # Update last scan stats
         conn2 = get_db_connection()
@@ -128,8 +127,8 @@ def trigger_scan(account_id: int, background_tasks: BackgroundTasks):
 
 
 @router.post("/scan-all", dependencies=[Depends(get_current_admin)])
-def trigger_scan_all():
-    """Scan all enabled email accounts."""
+def trigger_scan_all(scan_all: bool = Query(False, description="True para primera sincronizacion"), max_emails: int = Query(20, description="Cantidad maxima por cuenta")):
+    """Scan all enabled email accounts. Use scan_all=true for first-time historical sync."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -142,7 +141,7 @@ def trigger_scan_all():
         all_results = []
         for acc_id, acc_email, acc_pw, host, port in accounts:
             config = {"email": acc_email, "password": acc_pw, "imap_host": host, "imap_port": port}
-            result = scan_inbox(config)
+            result = scan_inbox(config, max_emails=max_emails, scan_all=scan_all)
             result["account"] = acc_email
 
             # Update stats
