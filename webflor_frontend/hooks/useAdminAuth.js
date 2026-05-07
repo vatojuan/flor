@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 
-// Helper para decodificar JWT sin dependencia externa
 function decodeJwt(token) {
   try {
     const payload = token.split(".")[1];
@@ -14,23 +13,27 @@ function decodeJwt(token) {
   }
 }
 
+function isTokenExpired(payload) {
+  if (!payload || !payload.exp) return true;
+  // exp is in seconds, Date.now() is in ms
+  return Date.now() >= payload.exp * 1000;
+}
+
 export default function useAdminAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Solo en cliente
     if (typeof window === "undefined") return;
 
     const token = localStorage.getItem("adminToken");
     if (token) {
       const payload = decodeJwt(token);
-      if (payload && payload.sub) {
-        // puedes extraer más campos si los incluyes en tu JWT
+      if (payload && payload.sub && !isTokenExpired(payload)) {
         setUser({ id: payload.sub, ...payload });
       } else {
-        // Token inválido — bórralo y redirige
+        // Token inválido o expirado — limpiar y redirigir
         localStorage.removeItem("adminToken");
       }
     }
@@ -38,9 +41,8 @@ export default function useAdminAuth() {
   }, [router]);
 
   useEffect(() => {
-    // Cuando ya no estamos cargando y no hay usuario, vamos al login
     if (!loading && !user) {
-      router.push("/admin/login");
+      router.replace("/admin/login");
     }
   }, [loading, user, router]);
 
