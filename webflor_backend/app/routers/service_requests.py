@@ -30,8 +30,14 @@ MP_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 
 SEARCH_SERVICE_PRICE = float(os.getenv("SEARCH_SERVICE_PRICE", "50000"))
+SELECTION_SERVICE_PRICE = float(os.getenv("SELECTION_SERVICE_PRICE", "120000"))
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://fapmendoza.online")
 BACKEND_URL = os.getenv("BACKEND_URL", "https://api.fapmendoza.online")
+
+SERVICE_PRICES = {
+    "busqueda": {"price": SEARCH_SERVICE_PRICE, "label": "Busqueda de personal"},
+    "seleccion": {"price": SELECTION_SERVICE_PRICE, "label": "Seleccion completa (busqueda + entrevistas)"},
+}
 
 
 class SearchServiceRequest(BaseModel):
@@ -43,6 +49,7 @@ class SearchServiceRequest(BaseModel):
     quantity: int = 1
     requirements: str
     urgency: str = "normal"
+    service_type: str = "busqueda"  # "busqueda" or "seleccion"
     location: Optional[str] = None
     notes: Optional[str] = None
 
@@ -89,14 +96,15 @@ async def request_search_service(req: SearchServiceRequest, background_tasks: Ba
         cur.close()
         conn.close()
 
-        # Create MP preference
+        # Create MP preference based on service type
+        service = SERVICE_PRICES.get(req.service_type, SERVICE_PRICES["busqueda"])
         urgency_label = {"urgente": " (URGENTE)", "normal": "", "flexible": ""}
         preference_data = {
             "items": [{
-                "title": f"Busqueda de personal: {req.position}{urgency_label.get(req.urgency, '')}",
+                "title": f"{service['label']}: {req.position}{urgency_label.get(req.urgency, '')}",
                 "description": f"{req.quantity} candidato(s) — {req.company_name}",
                 "quantity": 1,
-                "unit_price": SEARCH_SERVICE_PRICE,
+                "unit_price": service["price"],
                 "currency_id": "ARS",
             }],
             "external_reference": external_ref,
@@ -120,7 +128,8 @@ async def request_search_service(req: SearchServiceRequest, background_tasks: Ba
         return {
             "request_id": request_id,
             "checkout_url": preference["init_point"],
-            "amount": SEARCH_SERVICE_PRICE,
+            "amount": service["price"],
+            "service_type": req.service_type,
         }
 
     except Exception as e:
