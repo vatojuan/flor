@@ -199,15 +199,23 @@ def _process_cv_attachment(pdf_bytes: bytes, sender_email: str, account_email: s
 
         # Extract structured data
         cv_data = extract_cv_data(text)
-        user_email = cv_data.get("email") or sender_email
-        if not user_email:
-            return {"status": "skipped", "reason": "Sin email"}
 
-        user_email = user_email.lower()
+        # Email priority: CV extracted email > sender email
+        cv_email = cv_data.get("email")
+        if cv_email and "@" in cv_email and "." in cv_email.split("@")[-1]:
+            user_email = cv_email.lower()
+            email_source = "cv"
+        elif sender_email and "@" in sender_email:
+            user_email = sender_email.lower()
+            email_source = "remitente"
+        else:
+            return {"status": "skipped", "reason": "Sin email valido (ni en CV ni en remitente)"}
+
         name = cv_data.get("nombre") or user_email.split("@")[0].replace(".", " ").title()
         phone = cv_data.get("telefono")
         description = cv_data.get("descripcion") or ""
         rubro = cv_data.get("rubro") or "General"
+        logger.info("CV procesado: email=%s (fuente: %s), nombre=%s, rubro=%s", user_email, email_source, name, rubro)
 
         # Check if user already exists
         conn = get_db_connection()
