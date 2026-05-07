@@ -12,16 +12,18 @@ import {
 import PersonIcon from "@mui/icons-material/Person";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import StarIcon from "@mui/icons-material/Star";
 
 /**
  * Reusable job card component.
  *
  * Props:
- * - job: { id, title, createdAt, expirationDate, candidatesCount, label, rubro }
+ * - job: { id, title, createdAt, expirationDate, candidatesCount, label, rubro, is_paid }
  * - actions: ReactNode rendered in CardActions
  * - highlighted: boolean uses primary-tinted background
  */
 export default function JobCard({ job, actions, highlighted = false }) {
+  const isFeatured = job.is_paid || job.isPaid;
   const theme = useTheme();
 
   const publishedAt = job.createdAt || job.created_at || job.jobPostedAt || null;
@@ -32,9 +34,12 @@ export default function JobCard({ job, actions, highlighted = false }) {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        bgcolor: highlighted
-          ? alpha(theme.palette.primary.main, 0.1)
-          : "background.paper",
+        bgcolor: isFeatured
+          ? alpha(theme.palette.primary.main, 0.08)
+          : highlighted
+            ? alpha(theme.palette.primary.main, 0.05)
+            : "background.paper",
+        border: isFeatured ? `2px solid ${alpha(theme.palette.primary.main, 0.4)}` : undefined,
         transition: "box-shadow 0.2s, transform 0.2s",
         "&:hover": {
           boxShadow: theme.shadows[4],
@@ -43,6 +48,15 @@ export default function JobCard({ job, actions, highlighted = false }) {
       }}
     >
       <CardContent sx={{ flexGrow: 1 }}>
+        {isFeatured && (
+          <Chip
+            icon={<StarIcon />}
+            label="Destacada"
+            size="small"
+            sx={{ mb: 1, bgcolor: "#FFB300", color: "#fff", fontWeight: 600 }}
+          />
+        )}
+
         <Typography variant="h6" gutterBottom>
           {job.title}
         </Typography>
