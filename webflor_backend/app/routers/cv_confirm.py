@@ -164,9 +164,9 @@ def run_regeneration_for_all_users():
         conn = get_db_connection()
         register_vector(conn)
         cur = conn.cursor()
-        cur.execute('SELECT id, email, "cvUrl", name FROM "User"')
+        cur.execute('SELECT id, email, "cvUrl", name FROM "User" WHERE rubro IS NULL OR rubro = \'\'')
         users = cur.fetchall()
-        logger.info("Se encontraron %d usuarios para procesar.", len(users))
+        logger.info("Se encontraron %d usuarios SIN RUBRO para procesar.", len(users))
         bucket = storage_client.bucket(BUCKET_NAME)
 
         for user_id, user_email, cv_url, current_name in users:
