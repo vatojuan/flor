@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 
 /**
@@ -7,14 +7,15 @@ import { useRouter } from "next/router";
  *
  * Flow:
  * 1. Mobile app opens this page with ?returnUrl=exp://... or ?returnUrl=fapmendoza://...
- * 2. Page auto-triggers Google sign-in via NextAuth
+ * 2. Page clears any existing NextAuth session, then triggers Google sign-in
+ *    with prompt=select_account so the user can always choose which account
  * 3. After Google login, NextAuth redirects back here with active session
  * 4. Page redirects to returnUrl?token=JWT (back to the mobile app)
  */
 export default function MobileGoogleLogin() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [triggered, setTriggered] = useState(false);
+  const [phase, setPhase] = useState("init"); // init | signing-in | done
 
   // Get the return URL from query params (sent by mobile app)
   const returnUrl = router.query.returnUrl || "fapmendoza://login";
@@ -22,18 +23,30 @@ export default function MobileGoogleLogin() {
   useEffect(() => {
     if (status === "loading") return;
 
-    // If not authenticated, trigger Google sign-in
-    if (status === "unauthenticated" && !triggered) {
-      setTriggered(true);
-      // Pass returnUrl through the callback so it survives the OAuth redirect
-      signIn("google", {
-        callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
-      });
+    // Phase 1: clear any existing session so Google always shows account picker
+    if (phase === "init") {
+      if (status === "authenticated") {
+        // Sign out without redirect, then trigger Google sign-in
+        signOut({ redirect: false }).then(() => {
+          setPhase("signing-in");
+          signIn("google", {
+            callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
+            prompt: "select_account",
+          });
+        });
+      } else {
+        setPhase("signing-in");
+        signIn("google", {
+          callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
+          prompt: "select_account",
+        });
+      }
       return;
     }
 
-    // If authenticated, redirect to mobile app with token
-    if (status === "authenticated" && session) {
+    // Phase 2: after Google login, redirect to mobile app with token
+    if (status === "authenticated" && session && phase === "signing-in") {
+      setPhase("done");
       const token = session.user?.token || session.accessToken;
       const separator = String(returnUrl).includes("?") ? "&" : "?";
 
@@ -43,7 +56,7 @@ export default function MobileGoogleLogin() {
         window.location.href = `${returnUrl}${separator}error=no_token`;
       }
     }
-  }, [status, session, triggered, returnUrl]);
+  }, [status, session, phase, returnUrl]);
 
   return (
     <div

@@ -74,7 +74,7 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
         cur = conn.cursor()
         # Buscar usuario por email
         cur.execute(
-            'SELECT id, email, password FROM "User" WHERE email = %s',
+            'SELECT id, email, password, name, role FROM "User" WHERE email = %s',
             (form_data.username,),
         )
         row = cur.fetchone()
@@ -84,7 +84,7 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
                 detail="Usuario no encontrado",
             )
 
-        user_id, email, stored_password = row
+        user_id, email, stored_password, name, role = row
 
         # Verificar contraseña
         if not verify_password(form_data.password, stored_password):
@@ -93,8 +93,12 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
                 detail="Contraseña incorrecta",
             )
 
-        # Crear token con "sub" = user_id (string)
-        access_token = create_access_token(data={"sub": str(user_id)})
+        # Crear token con sub, name, role
+        access_token = create_access_token(data={
+            "sub": str(user_id),
+            "name": name or "",
+            "role": role or "candidato",
+        })
         return {"access_token": access_token, "token_type": "bearer"}
 
     except HTTPException:
@@ -134,7 +138,7 @@ def login_google(payload: GoogleLoginIn):
         # 2) Buscar usuario en BD por email
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT id FROM "User" WHERE email = %s', (email,))
+        cur.execute('SELECT id, name, role FROM "User" WHERE email = %s', (email,))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -145,10 +149,14 @@ def login_google(payload: GoogleLoginIn):
                 detail="Usuario no registrado",
             )
 
-        user_id = row[0]
+        user_id, name, role = row
 
-        # 3) Generar JWT de FastAPI con "sub" = user_id
-        access_token = create_access_token(data={"sub": str(user_id)})
+        # 3) Generar JWT de FastAPI con sub, name, role
+        access_token = create_access_token(data={
+            "sub": str(user_id),
+            "name": name or "",
+            "role": role or "candidato",
+        })
         return {"access_token": access_token, "token_type": "bearer"}
 
     except HTTPException:
