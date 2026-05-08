@@ -1,5 +1,5 @@
 // pages/admin/editar_db.js
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Container,
   TextField,
@@ -25,6 +25,7 @@ import {
   Chip,
   Grid,
   InputAdornment,
+  TablePagination,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -38,7 +39,6 @@ export default function EditarDB() {
   const { user, loading } = useAdminAuth();
   const [usersList, setUsersList] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -47,6 +47,8 @@ export default function EditarDB() {
   const [editedFiles, setEditedFiles] = useState([]);
   const [newFile, setNewFile] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(6);
 
   // Delete confirmation dialog state
   const [deleteDialog, setDeleteDialog] = useState({ open: false, userId: null, userName: "" });
@@ -65,7 +67,6 @@ export default function EditarDB() {
       if (res.ok) {
         const data = await res.json();
         setUsersList(data.users);
-        setFilteredUsers(data.users);
       } else {
         setSnackbar({ open: true, message: "Error al cargar usuarios", severity: "error" });
       }
@@ -80,14 +81,28 @@ export default function EditarDB() {
     }
   }, [loading, fetchUsers]);
 
-  useEffect(() => {
-    const results = usersList.filter(u =>
-      (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.phone && u.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Filter, sort alphabetically, and paginate
+  const filteredUsers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    const filtered = usersList.filter(u =>
+      (u.name && u.name.toLowerCase().includes(term)) ||
+      (u.email && u.email.toLowerCase().includes(term)) ||
+      (u.phone && u.phone.toLowerCase().includes(term))
     );
-    setFilteredUsers(results);
+    filtered.sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB, "es");
+    });
+    return filtered;
   }, [searchTerm, usersList]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
+
+  const paginatedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const handleEditClick = (userItem) => {
     setSelectedUser(userItem);
@@ -236,19 +251,22 @@ export default function EditarDB() {
             ),
           }}
         />
-        <TableContainer component={Paper}>
-          <Table>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {filteredUsers.length} usuario{filteredUsers.length !== 1 ? "s" : ""} encontrado{filteredUsers.length !== 1 ? "s" : ""}
+        </Typography>
+        <TableContainer component={Paper} sx={{ maxHeight: 420 }}>
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Nombre</TableCell>
                 <TableCell>Email</TableCell>
-                <TableCell>Teléfono</TableCell>
+                <TableCell>Telefono</TableCell>
                 <TableCell>Rubro</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredUsers.length > 0 ? filteredUsers.map((u) => (
+              {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
                 <TableRow key={u.id} hover>
                   <TableCell>{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
@@ -273,6 +291,17 @@ export default function EditarDB() {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={filteredUsers.length}
+          page={page}
+          onPageChange={(e, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          rowsPerPageOptions={[6, 10, 25, 50]}
+          labelRowsPerPage="Filas por pagina:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+        />
       </Container>
 
       {/* Delete confirmation dialog */}
@@ -280,10 +309,10 @@ export default function EditarDB() {
         open={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, userId: null, userName: "" })}
       >
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle>Confirmar eliminacion</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            ¿Estás seguro de que deseas eliminar a <strong>{deleteDialog.userName}</strong>? Se eliminarán la cuenta, archivos y embeddings. Esta acción no se puede deshacer.
+            ¿Estas seguro de que deseas eliminar a <strong>{deleteDialog.userName}</strong>? Se eliminaran la cuenta, archivos y embeddings. Esta accion no se puede deshacer.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -308,7 +337,7 @@ export default function EditarDB() {
         open={fileDeleteDialog.open}
         onClose={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}
       >
-        <DialogTitle>Confirmar eliminación de archivo</DialogTitle>
+        <DialogTitle>Confirmar eliminacion de archivo</DialogTitle>
         <DialogContent>
           <DialogContentText>
             ¿Seguro que quieres eliminar el archivo <strong>{fileDeleteDialog.fileName}</strong>?
@@ -340,10 +369,10 @@ export default function EditarDB() {
                 <TextField label="Nombre" fullWidth value={editedName} onChange={(e) => setEditedName(e.target.value)} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Teléfono" fullWidth value={editedPhone} onChange={(e) => setEditedPhone(e.target.value)} />
+                <TextField label="Telefono" fullWidth value={editedPhone} onChange={(e) => setEditedPhone(e.target.value)} />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Descripción" fullWidth multiline rows={3} value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} />
+                <TextField label="Descripcion" fullWidth multiline rows={3} value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} />
               </Grid>
             </Grid>
             <Box sx={{ mt: 3 }}>
