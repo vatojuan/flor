@@ -42,29 +42,65 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
         raise Exception(f"Error extrayendo texto del PDF: {e}")
 
 @router.get("")
-def list_users(current_admin: str = Depends(get_current_admin)):
+def list_users(
+    page: int = 1,
+    limit: int = 6,
+    search: str = "",
+    current_admin: str = Depends(get_current_admin),
+):
     """
-    Lista todos los usuarios con sus datos básicos y archivos subidos.
+    Lista usuarios paginados, ordenados alfabeticamente, con busqueda opcional.
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT id, email, name, phone, description FROM "User"')
+
+        offset = (page - 1) * limit
+        search_filter = ""
+        params = []
+
+        if search:
+            search_filter = (
+                'WHERE (LOWER(name) LIKE %s OR LOWER(email) LIKE %s OR LOWER(phone) LIKE %s)'
+            )
+            term = f"%{search.lower()}%"
+            params = [term, term, term]
+
+        # Total count
+        cur.execute(f'SELECT COUNT(*) FROM "User" {search_filter}', params)
+        total = cur.fetchone()[0]
+
+        # Paginated users sorted alphabetically
+        cur.execute(
+            f'SELECT id, email, name, phone, description, rubro FROM "User" {search_filter} '
+            f'ORDER BY LOWER(COALESCE(name, \'\')) ASC LIMIT %s OFFSET %s',
+            params + [limit, offset],
+        )
         users = cur.fetchall()
-        users_list = []
-        for u in users:
-            user_obj = {
+        user_ids = [u[0] for u in users]
+
+        # Fetch all files for these users in one query
+        files_map = {}
+        if user_ids:
+            cur.execute(
+                'SELECT "userId", id, url, "originalName" FROM "EmployeeDocument" WHERE "userId" = ANY(%s)',
+                (user_ids,),
+            )
+            for f in cur.fetchall():
+                files_map.setdefault(f[0], []).append({"id": f[1], "url": f[2], "filename": f[3]})
+
+        users_list = [
+            {
                 "id": u[0], "email": u[1], "name": u[2],
-                "phone": u[3], "description": u[4], "files": []
+                "phone": u[3], "description": u[4], "rubro": u[5],
+                "files": files_map.get(u[0], []),
             }
-            cur.execute('SELECT id, url, "originalName" FROM "EmployeeDocument" WHERE "userId" = %s', (u[0],))
-            files = cur.fetchall()
-            files_list = [{"id": f[0], "url": f[1], "filename": f[2]} for f in files]
-            user_obj["files"] = files_list
-            users_list.append(user_obj)
+            for u in users
+        ]
+
         cur.close()
         conn.close()
-        return {"users": users_list}
+        return {"users": users_list, "total": total, "page": page, "limit": limit}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

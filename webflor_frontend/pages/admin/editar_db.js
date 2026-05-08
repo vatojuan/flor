@@ -1,5 +1,5 @@
 // pages/admin/editar_db.js
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
   TextField,
@@ -38,7 +38,13 @@ import useAdminAuth from "../../hooks/useAdminAuth";
 export default function EditarDB() {
   const { user, loading } = useAdminAuth();
   const [usersList, setUsersList] = useState([]);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [fetching, setFetching] = useState(false);
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -47,62 +53,48 @@ export default function EditarDB() {
   const [editedFiles, setEditedFiles] = useState([]);
   const [newFile, setNewFile] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(6);
 
-  // Delete confirmation dialog state
   const [deleteDialog, setDeleteDialog] = useState({ open: false, userId: null, userName: "" });
-  // File delete confirmation dialog state
   const [fileDeleteDialog, setFileDeleteDialog] = useState({ open: false, fileId: null, fileName: "" });
 
   const getToken = () => typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (p, limit, search) => {
     const token = getToken();
     if (!token) return;
+    setFetching(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      const params = new URLSearchParams({ page: p + 1, limit, search });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (res.ok) {
         const data = await res.json();
         setUsersList(data.users);
+        setTotal(data.total);
       } else {
         setSnackbar({ open: true, message: "Error al cargar usuarios", severity: "error" });
       }
-    } catch (error) {
+    } catch {
       setSnackbar({ open: true, message: "Error de red al cargar usuarios", severity: "error" });
+    } finally {
+      setFetching(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      fetchUsers();
-    }
-  }, [loading, fetchUsers]);
+    if (!loading) fetchUsers(page, rowsPerPage, searchTerm);
+  }, [loading, page, rowsPerPage, searchTerm, fetchUsers]);
 
-  // Filter, sort alphabetically, and paginate
-  const filteredUsers = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    const filtered = usersList.filter(u =>
-      (u.name && u.name.toLowerCase().includes(term)) ||
-      (u.email && u.email.toLowerCase().includes(term)) ||
-      (u.phone && u.phone.toLowerCase().includes(term))
-    );
-    filtered.sort((a, b) => {
-      const nameA = (a.name || "").toLowerCase();
-      const nameB = (b.name || "").toLowerCase();
-      return nameA.localeCompare(nameB, "es");
-    });
-    return filtered;
-  }, [searchTerm, usersList]);
-
-  // Reset page when search changes
+  // Debounce search input
   useEffect(() => {
-    setPage(0);
-  }, [searchTerm]);
-
-  const paginatedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const handleEditClick = (userItem) => {
     setSelectedUser(userItem);
@@ -128,13 +120,10 @@ export default function EditarDB() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
         ...options,
-        headers: {
-          ...options.headers,
-          "Authorization": `Bearer ${token}`
-        }
+        headers: { ...options.headers, Authorization: `Bearer ${token}` },
       });
       return res;
-    } catch (error) {
+    } catch {
       setSnackbar({ open: true, message: "Error de red al contactar la API.", severity: "error" });
       return null;
     }
@@ -145,11 +134,11 @@ export default function EditarDB() {
     const res = await handleApiCall(`/admin/users/${selectedUser.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editedName, phone: editedPhone, description: editedDescription })
+      body: JSON.stringify({ name: editedName, phone: editedPhone, description: editedDescription }),
     });
     if (res && res.ok) {
       setSnackbar({ open: true, message: "Usuario actualizado", severity: "success" });
-      fetchUsers();
+      fetchUsers(page, rowsPerPage, searchTerm);
       handleDialogClose();
     } else if (res) {
       const errorData = await res.json().catch(() => ({ detail: `Error al actualizar: ${res.statusText}` }));
@@ -161,7 +150,7 @@ export default function EditarDB() {
     const res = await handleApiCall(`/admin/users/${userId}`, { method: "DELETE" });
     if (res && res.ok) {
       setSnackbar({ open: true, message: "Usuario eliminado", severity: "success" });
-      fetchUsers();
+      fetchUsers(page, rowsPerPage, searchTerm);
     } else if (res) {
       const errorData = await res.json().catch(() => ({ detail: `Error al eliminar: ${res.statusText}` }));
       setSnackbar({ open: true, message: errorData.detail, severity: "error" });
@@ -178,7 +167,7 @@ export default function EditarDB() {
     formData.append("file", newFile);
     const res = await handleApiCall(`/admin/users/${selectedUser.id}/files`, {
       method: "POST",
-      body: formData
+      body: formData,
     });
     if (res && res.ok) {
       const updatedUser = await res.json();
@@ -206,9 +195,7 @@ export default function EditarDB() {
 
   const handleDownloadFile = async (file) => {
     if (!selectedUser) return;
-    const endpoint = `/admin/users/files/${file.id}/signed-url`;
-    const res = await handleApiCall(endpoint, { method: 'GET' });
-
+    const res = await handleApiCall(`/admin/users/files/${file.id}/signed-url`, { method: "GET" });
     if (res && res.ok) {
       const data = await res.json();
       if (data.url) {
@@ -225,7 +212,7 @@ export default function EditarDB() {
   if (loading) {
     return (
       <DashboardLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
           <CircularProgress />
         </Box>
       </DashboardLayout>
@@ -241,8 +228,8 @@ export default function EditarDB() {
           variant="outlined"
           fullWidth
           margin="normal"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -252,9 +239,14 @@ export default function EditarDB() {
           }}
         />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {filteredUsers.length} usuario{filteredUsers.length !== 1 ? "s" : ""} encontrado{filteredUsers.length !== 1 ? "s" : ""}
+          {total} usuario{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
         </Typography>
-        <TableContainer component={Paper} sx={{ maxHeight: 420 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: 620, position: "relative" }}>
+          {fetching && (
+            <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "center", alignItems: "center", bgcolor: "rgba(255,255,255,0.7)", zIndex: 1 }}>
+              <CircularProgress size={32} />
+            </Box>
+          )}
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
@@ -266,7 +258,7 @@ export default function EditarDB() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
+              {usersList.length > 0 ? usersList.map((u) => (
                 <TableRow key={u.id} hover>
                   <TableCell>{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
@@ -285,7 +277,9 @@ export default function EditarDB() {
                 </TableRow>
               )) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No se encontraron clientes.</TableCell>
+                  <TableCell colSpan={5} align="center">
+                    {fetching ? "" : "No se encontraron clientes."}
+                  </TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -293,22 +287,19 @@ export default function EditarDB() {
         </TableContainer>
         <TablePagination
           component="div"
-          count={filteredUsers.length}
+          count={total}
           page={page}
           onPageChange={(e, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-          rowsPerPageOptions={[6, 10, 25, 50]}
+          rowsPerPageOptions={[10, 25, 50]}
           labelRowsPerPage="Filas por pagina:"
           labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
         />
       </Container>
 
       {/* Delete confirmation dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, userId: null, userName: "" })}
-      >
+      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, userId: null, userName: "" })}>
         <DialogTitle>Confirmar eliminacion</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -316,27 +307,15 @@ export default function EditarDB() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog({ open: false, userId: null, userName: "" })}>
-            Cancelar
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              handleDeleteUser(deleteDialog.userId);
-              setDeleteDialog({ open: false, userId: null, userName: "" });
-            }}
-          >
+          <Button onClick={() => setDeleteDialog({ open: false, userId: null, userName: "" })}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={() => { handleDeleteUser(deleteDialog.userId); setDeleteDialog({ open: false, userId: null, userName: "" }); }}>
             Eliminar
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* File delete confirmation dialog */}
-      <Dialog
-        open={fileDeleteDialog.open}
-        onClose={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}
-      >
+      <Dialog open={fileDeleteDialog.open} onClose={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}>
         <DialogTitle>Confirmar eliminacion de archivo</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -344,17 +323,8 @@ export default function EditarDB() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}>
-            Cancelar
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              handleDeleteFile(fileDeleteDialog.fileId);
-              setFileDeleteDialog({ open: false, fileId: null, fileName: "" });
-            }}
-          >
+          <Button onClick={() => setFileDeleteDialog({ open: false, fileId: null, fileName: "" })}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={() => { handleDeleteFile(fileDeleteDialog.fileId); setFileDeleteDialog({ open: false, fileId: null, fileName: "" }); }}>
             Eliminar
           </Button>
         </DialogActions>
@@ -379,26 +349,11 @@ export default function EditarDB() {
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Archivos Subidos</Typography>
               {editedFiles && editedFiles.length > 0 ? (
                 editedFiles.map((file) => (
-                  <Box
-                    key={file.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      my: 1,
-                      p: 1,
-                      borderRadius: 1,
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'action.selected' },
-                    }}
-                  >
+                  <Box key={file.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", my: 1, p: 1, borderRadius: 1, bgcolor: "action.hover", "&:hover": { bgcolor: "action.selected" } }}>
                     <Typography variant="body2" sx={{ flexGrow: 1 }}>{file.filename}</Typography>
                     <Box>
                       <IconButton size="small" onClick={() => handleDownloadFile(file)}><DownloadIcon fontSize="small" /></IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => setFileDeleteDialog({ open: true, fileId: file.id, fileName: file.filename })}
-                      >
+                      <IconButton size="small" onClick={() => setFileDeleteDialog({ open: true, fileId: file.id, fileName: file.filename })}>
                         <DeleteIcon fontSize="small" color="error" />
                       </IconButton>
                     </Box>
@@ -407,12 +362,12 @@ export default function EditarDB() {
               ) : (
                 <Typography variant="body2" color="text.secondary">No hay archivos subidos.</Typography>
               )}
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", mt: 2 }}>
                 <Button variant="contained" component="label" startIcon={<CloudUploadIcon />} size="small">
                   Agregar Archivo
                   <input type="file" hidden onChange={handleNewFileChange} />
                 </Button>
-                {newFile && (<Typography variant="body2" sx={{ ml: 2 }}>{newFile.name}</Typography>)}
+                {newFile && <Typography variant="body2" sx={{ ml: 2 }}>{newFile.name}</Typography>}
                 <Button variant="outlined" size="small" sx={{ ml: 2 }} onClick={handleUploadFile} disabled={!newFile}>Subir</Button>
               </Box>
             </Box>
