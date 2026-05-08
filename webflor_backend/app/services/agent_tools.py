@@ -6,10 +6,17 @@ that GPT-4 can use to formulate a response.
 """
 import logging
 import os
+import unicodedata
 from typing import Optional
 from app.database import get_db_connection
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_accents(text: str) -> str:
+    """Remove accent marks from text for accent-insensitive matching."""
+    nfkd = unicodedata.normalize('NFKD', text)
+    return ''.join(c for c in nfkd if not unicodedata.combining(c))
 
 
 def search_candidates(
@@ -27,8 +34,8 @@ def search_candidates(
         params = ['empleado']
 
         if rubro:
-            conditions.append('u.rubro ILIKE %s')
-            params.append(f'%{rubro}%')
+            conditions.append("translate(u.rubro, 'áéíóúñüÁÉÍÓÚÑÜ', 'aeiounuAEIOUNU') ILIKE %s")
+            params.append(f'%{_strip_accents(rubro)}%')
 
         if keyword:
             conditions.append('(u.name ILIKE %s OR u.description ILIKE %s OR u.email ILIKE %s)')
@@ -77,8 +84,8 @@ def search_jobs(
             conditions.append('(j."expirationDate" IS NULL OR j."expirationDate" > NOW())')
 
         if rubro:
-            conditions.append('j.rubro ILIKE %s')
-            params.append(f'%{rubro}%')
+            conditions.append("translate(j.rubro, 'áéíóúñüÁÉÍÓÚÑÜ', 'aeiounuAEIOUNU') ILIKE %s")
+            params.append(f'%{_strip_accents(rubro)}%')
 
         if keyword:
             conditions.append('(j.title ILIKE %s OR j.description ILIKE %s)')
@@ -151,8 +158,8 @@ def get_candidates_for_mailing(
         params = ['empleado']
 
         if rubro:
-            conditions.append('u.rubro ILIKE %s')
-            params.append(f'%{rubro}%')
+            conditions.append("translate(u.rubro, 'áéíóúñüÁÉÍÓÚÑÜ', 'aeiounuAEIOUNU') ILIKE %s")
+            params.append(f'%{_strip_accents(rubro)}%')
 
         if keyword:
             conditions.append('(u.name ILIKE %s OR u.description ILIKE %s)')
@@ -283,7 +290,7 @@ def create_mailing_group(
         conditions = ["u.role = 'empleado'", "u.confirmed = TRUE", "u.email IS NOT NULL", "COALESCE(u.active, TRUE) = TRUE"]
         params = []
         if rubro:
-            conditions.append("u.rubro ILIKE %s"); params.append(f"%{rubro}%")
+            conditions.append("translate(u.rubro, 'áéíóúñüÁÉÍÓÚÑÜ', 'aeiounuAEIOUNU') ILIKE %s"); params.append(f"%{_strip_accents(rubro)}%")
         if keyword:
             conditions.append("(u.name ILIKE %s OR u.description ILIKE %s)"); params.extend([f"%{keyword}%", f"%{keyword}%"])
 
