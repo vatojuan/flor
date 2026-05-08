@@ -1,7 +1,4 @@
 import prisma from "../../../lib/prisma";
-import jwt from "jsonwebtoken";
-
-const SECRET_KEY = process.env.SECRET_KEY || process.env.NEXTAUTH_SECRET;
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -16,18 +13,11 @@ export default async function handler(req, res) {
   const token = authHeader.split(" ")[1];
 
   try {
-    // Try decoding as FastAPI JWT
-    let userId;
-    try {
-      const decoded = jwt.verify(token, SECRET_KEY);
-      userId = decoded.sub;
-    } catch {
-      // If verification fails, just decode without verifying (FastAPI may use different secret)
-      const decoded = JSON.parse(
-        Buffer.from(token.split(".")[1], "base64").toString()
-      );
-      userId = decoded.sub;
-    }
+    // Decode JWT payload without verification (FastAPI uses its own secret)
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(Buffer.from(base64, "base64").toString());
+    const userId = payload.sub;
 
     if (!userId) {
       return res.status(401).json({ error: "Token invalido" });
