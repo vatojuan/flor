@@ -183,21 +183,6 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
   /* ---- Employer menu items ---- */
   const empleadorMenuItems = [
     {
-      label: "Publicar Oferta",
-      href: "/job-create",
-      icon: <AddCircleOutlineIcon sx={{ fontSize: 40 }} />,
-    },
-    {
-      label: "Mis Ofertas",
-      href: "/job-list",
-      icon: <ListAltIcon sx={{ fontSize: 40 }} />,
-    },
-    {
-      label: "Actualizar Perfil",
-      href: "/profile-empleador",
-      icon: <PersonIcon sx={{ fontSize: 40 }} />,
-    },
-    {
       label: "Mis Postulaciones",
       href: "/employer/postulaciones",
       icon: <InboxIcon sx={{ fontSize: 40 }} />,
@@ -532,7 +517,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
           />
           <Grid container spacing={2}>
             {empleadorMenuItems.map((item) => (
-              <Grid item xs={6} sm={4} key={item.href}>
+              <Grid item xs={6} sm={3} key={item.href}>
                 <Card
                   elevation={1}
                   sx={{
