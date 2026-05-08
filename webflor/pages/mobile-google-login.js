@@ -3,40 +3,47 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 
 /**
- * This page is opened by the mobile app via WebBrowser.
+ * Mobile Google Login Bridge
+ *
  * Flow:
- * 1. Mobile opens this page
- * 2. Page auto-redirects to Google OAuth via NextAuth
- * 3. After Google login, NextAuth redirects back here with a session
- * 4. Page reads the JWT from the session and redirects to fapmendoza://login?token=JWT
+ * 1. Mobile app opens this page with ?returnUrl=exp://... or ?returnUrl=fapmendoza://...
+ * 2. Page auto-triggers Google sign-in via NextAuth
+ * 3. After Google login, NextAuth redirects back here with active session
+ * 4. Page redirects to returnUrl?token=JWT (back to the mobile app)
  */
 export default function MobileGoogleLogin() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [triggered, setTriggered] = useState(false);
 
+  // Get the return URL from query params (sent by mobile app)
+  const returnUrl = router.query.returnUrl || "fapmendoza://login";
+
   useEffect(() => {
+    if (status === "loading") return;
+
     // If not authenticated, trigger Google sign-in
     if (status === "unauthenticated" && !triggered) {
       setTriggered(true);
-      signIn("google", { callbackUrl: "/mobile-google-login" });
+      // Pass returnUrl through the callback so it survives the OAuth redirect
+      signIn("google", {
+        callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
+      });
+      return;
     }
 
     // If authenticated, redirect to mobile app with token
-    if (status === "authenticated" && session?.user?.token) {
-      const token = session.user.token || session.accessToken;
+    if (status === "authenticated" && session) {
+      const token = session.user?.token || session.accessToken;
+      const separator = String(returnUrl).includes("?") ? "&" : "?";
+
       if (token) {
-        window.location.href = `fapmendoza://login?token=${token}`;
+        window.location.href = `${returnUrl}${separator}token=${token}`;
       } else {
-        window.location.href = `fapmendoza://login?error=no_token`;
+        window.location.href = `${returnUrl}${separator}error=no_token`;
       }
     }
-
-    if (status === "authenticated" && !session?.user?.token && !session?.accessToken) {
-      // Session exists but no FastAPI token - try accessToken
-      window.location.href = `fapmendoza://login?error=no_fastapi_token`;
-    }
-  }, [status, session, triggered]);
+  }, [status, session, triggered, returnUrl]);
 
   return (
     <div

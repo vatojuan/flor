@@ -4,6 +4,7 @@ import { TextInput, Button, Text, useTheme, Snackbar, Divider } from 'react-nati
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useAuth } from '../../hooks/useAuth';
 import { WEB_API } from '../../services/api';
 import { colors } from '../../theme/colors';
@@ -37,17 +38,28 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      // Open dedicated web page that handles Google OAuth via NextAuth
-      // After login, the page redirects to fapmendoza://login?token=JWT
+      // Build the return URL that works in both Expo Go and standalone builds
+      const returnUrl = Linking.createURL('login');
       const result = await WebBrowser.openAuthSessionAsync(
-        `${WEB_API}/mobile-google-login`,
-        'fapmendoza://login'
+        `${WEB_API}/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
+        returnUrl
       );
 
       if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        const token = url.searchParams.get('token');
-        const error = url.searchParams.get('error');
+        // Parse token from URL - handle both URL formats
+        let token: string | null = null;
+        let error: string | null = null;
+        try {
+          const url = new URL(result.url);
+          token = url.searchParams.get('token');
+          error = url.searchParams.get('error');
+        } catch {
+          // Fallback: extract from query string manually
+          const qs = result.url.split('?')[1] || '';
+          const params = new URLSearchParams(qs);
+          token = params.get('token');
+          error = params.get('error');
+        }
 
         if (token) {
           await loginWithToken(token);
