@@ -1,52 +1,29 @@
-import { useEffect, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 
 /**
  * Mobile Google Login Bridge
  *
  * Flow:
- * 1. Mobile app opens this page with ?returnUrl=exp://... or ?returnUrl=fapmendoza://...
- * 2. Page clears any existing NextAuth session, then triggers Google sign-in
- *    with prompt=select_account so the user can always choose which account
- * 3. After Google login, NextAuth redirects back here with active session
- * 4. Page redirects to returnUrl?token=JWT (back to the mobile app)
+ * 1. Mobile opens: /mobile-google-login?returnUrl=exp://...
+ * 2. Page triggers Google sign-in via NextAuth
+ * 3. NextAuth redirects back: /mobile-google-login?returnUrl=...&from=google
+ * 4. Page reads JWT from session and redirects to returnUrl?token=JWT
  */
 export default function MobileGoogleLogin() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [phase, setPhase] = useState("init"); // init | signing-in | done
 
-  // Get the return URL from query params (sent by mobile app)
   const returnUrl = router.query.returnUrl || "fapmendoza://login";
+  // "from=google" is added to callbackUrl so we know we're returning from OAuth
+  const fromGoogle = router.query.from === "google";
 
   useEffect(() => {
-    if (status === "loading") return;
+    if (status === "loading" || !router.isReady) return;
 
-    // Phase 1: clear any existing session so Google always shows account picker
-    if (phase === "init") {
-      if (status === "authenticated") {
-        // Sign out without redirect, then trigger Google sign-in
-        signOut({ redirect: false }).then(() => {
-          setPhase("signing-in");
-          signIn("google", {
-            callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
-            prompt: "select_account",
-          });
-        });
-      } else {
-        setPhase("signing-in");
-        signIn("google", {
-          callbackUrl: `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}`,
-          prompt: "select_account",
-        });
-      }
-      return;
-    }
-
-    // Phase 2: after Google login, redirect to mobile app with token
-    if (status === "authenticated" && session && phase === "signing-in") {
-      setPhase("done");
+    // Returning from Google OAuth - extract token and redirect to app
+    if (fromGoogle && status === "authenticated" && session) {
       const token = session.user?.token || session.accessToken;
       const separator = String(returnUrl).includes("?") ? "&" : "?";
 
@@ -55,8 +32,15 @@ export default function MobileGoogleLogin() {
       } else {
         window.location.href = `${returnUrl}${separator}error=no_token`;
       }
+      return;
     }
-  }, [status, session, phase, returnUrl]);
+
+    // First visit - trigger Google sign-in
+    if (!fromGoogle) {
+      const cb = `/mobile-google-login?returnUrl=${encodeURIComponent(returnUrl)}&from=google`;
+      signIn("google", { callbackUrl: cb });
+    }
+  }, [status, session, router.isReady, fromGoogle, returnUrl]);
 
   return (
     <div
@@ -73,11 +57,9 @@ export default function MobileGoogleLogin() {
       <div style={{ textAlign: "center" }}>
         <h2 style={{ color: "#D96236" }}>FAP Mendoza</h2>
         <p>
-          {status === "loading"
-            ? "Conectando con Google..."
-            : status === "authenticated"
+          {fromGoogle
             ? "Redirigiendo a la app..."
-            : "Iniciando sesión con Google..."}
+            : "Conectando con Google..."}
         </p>
       </div>
     </div>
