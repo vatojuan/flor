@@ -37,22 +37,23 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      // Open Google OAuth via our web app, which returns a token via redirect
-      const callbackUrl = `${WEB_API}/api/auth/google-mobile-callback`;
+      // Open dedicated web page that handles Google OAuth via NextAuth
+      // After login, the page redirects to fapmendoza://login?token=JWT
       const result = await WebBrowser.openAuthSessionAsync(
-        `${WEB_API}/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-        'fapmendoza://'
+        `${WEB_API}/mobile-google-login`,
+        'fapmendoza://login'
       );
 
       if (result.type === 'success' && result.url) {
-        // Extract token from the redirect URL
         const url = new URL(result.url);
         const token = url.searchParams.get('token');
+        const error = url.searchParams.get('error');
+
         if (token) {
           await loginWithToken(token);
           router.replace('/(tabs)');
         } else {
-          setSnackbar({ visible: true, message: 'No se recibio token de Google' });
+          setSnackbar({ visible: true, message: error || 'No se recibio token de Google' });
         }
       }
     } catch (err: any) {
