@@ -24,6 +24,7 @@ from app.routers import (
     mailing,
     notifications,
     payments,
+    reputation,
     screenshot_to_job,
     service_requests,
     users,
@@ -104,6 +105,7 @@ app.include_router(email_db_admin.router)
 app.include_router(job_admin.router)
 app.include_router(training.router)
 app.include_router(notifications.router)
+app.include_router(reputation.router)
 app.include_router(admin_auth_router, prefix="/auth", tags=["admin"])
 
 

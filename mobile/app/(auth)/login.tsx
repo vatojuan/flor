@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { TextInput, Button, Text, useTheme, Snackbar } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { TextInput, Button, Text, useTheme, Snackbar, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../hooks/useAuth';
+import { WEB_API } from '../../services/api';
 import { colors } from '../../theme/colors';
 
 export default function LoginScreen() {
   const theme = useTheme();
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
 
   const handleLogin = async () => {
@@ -28,6 +31,34 @@ export default function LoginScreen() {
       setSnackbar({ visible: true, message: err.message || 'Error al iniciar sesion' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      // Open Google OAuth via our web app, which returns a token via redirect
+      const callbackUrl = `${WEB_API}/api/auth/google-mobile-callback`;
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${WEB_API}/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        'fapmendoza://'
+      );
+
+      if (result.type === 'success' && result.url) {
+        // Extract token from the redirect URL
+        const url = new URL(result.url);
+        const token = url.searchParams.get('token');
+        if (token) {
+          await loginWithToken(token);
+          router.replace('/(tabs)');
+        } else {
+          setSnackbar({ visible: true, message: 'No se recibio token de Google' });
+        }
+      }
+    } catch (err: any) {
+      setSnackbar({ visible: true, message: err.message || 'Error con Google' });
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -52,6 +83,28 @@ export default function LoginScreen() {
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
               Ingresa a tu cuenta
             </Text>
+          </View>
+
+          {/* Google Sign-In */}
+          <Button
+            mode="outlined"
+            icon="google"
+            onPress={handleGoogleLogin}
+            loading={googleLoading}
+            disabled={googleLoading || loading}
+            style={styles.googleButton}
+            contentStyle={styles.googleButtonContent}
+            labelStyle={{ fontWeight: '600' }}
+          >
+            Continuar con Google
+          </Button>
+
+          <View style={styles.dividerRow}>
+            <Divider style={styles.dividerLine} />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginHorizontal: 12 }}>
+              o con email
+            </Text>
+            <Divider style={styles.dividerLine} />
           </View>
 
           <View style={styles.form}>
@@ -89,7 +142,7 @@ export default function LoginScreen() {
               mode="contained"
               onPress={handleLogin}
               loading={loading}
-              disabled={loading}
+              disabled={loading || googleLoading}
               style={styles.loginButton}
               contentStyle={styles.loginButtonContent}
               labelStyle={styles.loginButtonLabel}
@@ -144,7 +197,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   logoContainer: {
     width: 80,
@@ -167,6 +220,22 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: '700',
     marginBottom: 4,
+  },
+  googleButton: {
+    borderRadius: 12,
+    borderColor: colors.grey[400],
+    marginBottom: 16,
+  },
+  googleButtonContent: {
+    height: 50,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
   },
   form: {
     gap: 12,

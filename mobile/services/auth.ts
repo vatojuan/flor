@@ -1,10 +1,16 @@
 import { WEB_API, FAST_API, apiFetch } from './api';
 
 export async function loginWithCredentials(email: string, password: string) {
-  const res = await apiFetch(`${FAST_API}/auth/login`, {
+  // FastAPI uses OAuth2PasswordRequestForm which expects form-urlencoded
+  const formBody = new URLSearchParams({
+    username: email.toLowerCase(),
+    password,
+  }).toString();
+
+  const res = await fetch(`${FAST_API}/auth/login`, {
     method: 'POST',
-    body: JSON.stringify({ email: email.toLowerCase(), password }),
-    auth: false,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formBody,
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -13,15 +19,16 @@ export async function loginWithCredentials(email: string, password: string) {
   return res.json();
 }
 
-export async function loginWithGoogle(googleToken: string) {
-  const res = await apiFetch(`${FAST_API}/auth/login-google`, {
+export async function loginWithGoogle(idToken: string) {
+  // Calls our custom endpoint that does upsert + FastAPI login
+  const res = await apiFetch(`${WEB_API}/api/auth/google-mobile`, {
     method: 'POST',
-    body: JSON.stringify({ token: googleToken }),
+    body: JSON.stringify({ id_token: idToken }),
     auth: false,
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || 'Error con Google login');
+    throw new Error(data.error || 'Error con Google login');
   }
   return res.json();
 }

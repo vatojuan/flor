@@ -35,6 +35,10 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import StarIcon from "@mui/icons-material/Star";
 import InboxIcon from "@mui/icons-material/Inbox";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import RateReviewIcon from "@mui/icons-material/RateReview";
+import VerifiedIcon from "@mui/icons-material/Verified";
+import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
@@ -53,6 +57,7 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
   const [selectedCancelJobId, setSelectedCancelJobId] = useState(null);
   const [employerJobs, setEmployerJobs] = useState([]);
+  const [reputation, setReputation] = useState(null);
 
   /* ---- Route guards ---- */
   useEffect(() => {
@@ -91,6 +96,18 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
 
     fetchApplications();
   }, [sessionStatus, userRole, token, authHeader]);
+
+  /* ---- Fetch reputation (empleado) ---- */
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || userRole !== "empleado") return;
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    fetch(`${API_BASE}/api/reputation/summary/${userId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setReputation(data); })
+      .catch(() => {});
+  }, [sessionStatus, userRole, session?.user?.id]);
 
   /* ---- Fetch employer jobs (empleador/admin) ---- */
   useEffect(() => {
@@ -186,6 +203,11 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       icon: <InboxIcon sx={{ fontSize: 40 }} />,
     },
     {
+      label: "Mis Favoritos",
+      href: "/employer/favoritos",
+      icon: <FavoriteIcon sx={{ fontSize: 40 }} />,
+    },
+    {
       label: "Buscar Personal",
       href: "/servicios/busqueda",
       icon: <SearchIcon sx={{ fontSize: 40 }} />,
@@ -235,6 +257,93 @@ export default function Dashboard({ toggleDarkMode, currentMode }) {
       {/* ---- EMPLEADO view ---- */}
       {userRole === "empleado" && (
         <>
+          {/* Reputation stats */}
+          {reputation && reputation.review_count > 0 && (
+            <Box sx={{ maxWidth: 500, mx: "auto", mt: 3 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      textAlign: "center",
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <StarIcon sx={{ fontSize: 30, color: "#FFB300", mb: 0.5 }} />
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFB300", lineHeight: 1 }}>
+                      {reputation.avg_rating || "—"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Calificacion
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={4}>
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      textAlign: "center",
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <RateReviewIcon sx={{ fontSize: 30, color: "#26A69A", mb: 0.5 }} />
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: "#26A69A", lineHeight: 1 }}>
+                      {reputation.review_count}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Resenas
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={4}>
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      textAlign: "center",
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <WorkHistoryIcon sx={{ fontSize: 30, color: "#D96236", mb: 0.5 }} />
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: "#D96236", lineHeight: 1 }}>
+                      {reputation.jobs_completed}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Trabajos
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+              {reputation.badge_verified && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    mt: 1.5,
+                    p: 1,
+                    borderRadius: 2,
+                    backgroundColor: "rgba(25, 118, 210, 0.08)",
+                  }}
+                >
+                  <VerifiedIcon sx={{ color: "#1976d2" }} />
+                  <Typography variant="body2" sx={{ color: "#1976d2", fontWeight: 600 }}>
+                    Candidato Verificado
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
           <Box sx={{ mt: 3, mx: "auto", maxWidth: 500 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>

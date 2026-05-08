@@ -16,6 +16,7 @@ Ofertas de empleo
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -30,7 +31,7 @@ from pgvector.psycopg2 import register_vector
 
 import requests
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, status
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
 from pydantic import BaseModel, Field
@@ -56,6 +57,15 @@ class JobCreateRequest(BaseModel):
     contactEmail: Optional[str] = Field(None, description="Email de contacto del empleador")
     contactPhone: Optional[str] = Field(None, description="Teléfono de contacto del empleador")
     rubro: Optional[str] = Field(None, description="Rubro/categoría profesional (se clasifica automáticamente si no se envía)")
+    # ── Enhanced job fields ──
+    contract_type: str = Field("efectivo", description="Tipo de contratación: ocasional, temporal, contrato, efectivo, freelance")
+    modality: str = Field("presencial", description="Modalidad: presencial, remoto, hibrido")
+    location: Optional[str] = Field(None, description="Ubicación del puesto")
+    salary_min: Optional[float] = Field(None, description="Sueldo mínimo")
+    salary_max: Optional[float] = Field(None, description="Sueldo máximo")
+    salary_visible: bool = Field(True, description="Mostrar sueldo públicamente")
+    benefits: Optional[List[str]] = Field(None, description="Lista de beneficios")
+    tags: Optional[List[str]] = Field(None, description="Tags/etiquetas de la oferta")
 
 
 class JobCreateAdminRequest(JobCreateRequest):
@@ -165,6 +175,32 @@ def _classify_rubro(title: str, description: str) -> str:
         return "General"
 
 
+def _generate_tags(title: str, description: str) -> List[str]:
+    """Use GPT to generate relevant tags for a job offer."""
+    try:
+        resp = _oai_client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": (
+                    "Genera entre 3 y 6 tags relevantes para la siguiente oferta de trabajo. "
+                    "Los tags deben ser en español, en minúsculas, sin #, separados por coma. "
+                    "Incluye tags de rubro, puesto, horario, ubicación si se menciona, y nivel de experiencia. "
+                    "Ejemplo: gastronomia, mozo, turno-noche, godoy-cruz, con-experiencia. "
+                    "Responde SOLO con los tags separados por coma."
+                )},
+                {"role": "user", "content": f"Titulo: {title}\nDescripcion: {description[:500]}"},
+            ],
+            max_tokens=80,
+            temperature=0.3,
+        )
+        raw = resp.choices[0].message.content.strip()
+        tags = [t.strip().lower().replace(" ", "-").lstrip("#") for t in raw.split(",") if t.strip()]
+        return tags[:6]
+    except Exception:
+        logger.warning("Failed to generate tags")
+        return []
+
+
 # ═══════════ Helpers comunes (inserción + matching) ═══════════
 def _insert_job(
     payload: Dict[str, Any],
@@ -202,6 +238,21 @@ def _insert_job(
     embedding = generate_embedding(f"{title}\n{desc}\n{reqs}")
     rubro = payload.get("rubro") or _classify_rubro(title, desc)
 
+    # ── Enhanced fields ──
+    contract_type  = payload.get("contract_type", "efectivo")
+    modality       = payload.get("modality", "presencial")
+    location       = (payload.get("location") or "").strip() or None
+    salary_min     = payload.get("salary_min")
+    salary_max     = payload.get("salary_max")
+    salary_visible = payload.get("salary_visible", True)
+    benefits       = payload.get("benefits") or None
+    tags           = payload.get("tags")
+    banner_url     = payload.get("banner_url")
+
+    # Auto-generate tags if not provided
+    if not tags:
+        tags = _generate_tags(title, desc)
+
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -219,9 +270,17 @@ def _insert_job(
 
         fields = [
             "title", "description", "requirements", '"expirationDate"',
-            '"userId"', "embedding", "label", "source", "rubro"
+            '"userId"', "embedding", "label", "source", "rubro",
+            "contract_type", "modality", "location",
+            "salary_min", "salary_max", "salary_visible",
+            "benefits", "tags", "banner_url"
         ]
-        values = [title, desc, reqs, exp_dt, owner_id, embedding, label, source, rubro]
+        values = [
+            title, desc, reqs, exp_dt, owner_id, embedding, label, source, rubro,
+            contract_type, modality, location,
+            salary_min, salary_max, salary_visible,
+            benefits, tags, banner_url
+        ]
 
         if has_is_paid:
             fields.append("is_paid");        values.append(is_paid)
@@ -330,6 +389,17 @@ async def list_jobs(userId: Optional[int] = None):
               j."userId",
               COALESCE(j.source, '') AS source,
               COALESCE(j.label,  '') AS label,
+              j.contract_type,
+              j.modality,
+              j.location,
+              j.salary_min,
+              j.salary_max,
+              j.salary_visible,
+              j.benefits,
+              j.tags,
+              j.banner_url,
+              j.is_paid,
+              j.rubro,
               COUNT(p.*) FILTER (WHERE p.status NOT IN ('cancelled','rejected')) AS "candidatesCount"
             FROM "Job" j
             LEFT JOIN proposals p ON p.job_id = j.id
@@ -453,6 +523,17 @@ async def get_job(job_id: int = Path(..., description="ID de la oferta")):
               j."createdAt",
               j."expirationDate",
               j."userId",
+              j.contract_type,
+              j.modality,
+              j.location,
+              j.salary_min,
+              j.salary_max,
+              j.salary_visible,
+              j.benefits,
+              j.tags,
+              j.banner_url,
+              j.is_paid,
+              j.rubro,
               COUNT(p.*) FILTER (WHERE p.status NOT IN ('cancelled','rejected')) AS "candidatesCount"
             FROM "Job" j
             LEFT JOIN proposals p ON p.job_id = j.id
@@ -616,4 +697,50 @@ async def apply_to_job(data: ApplyToJobRequest, current_user=Depends(get_current
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+# ═════════════ Banner upload ═════════════
+
+@router.post("/upload-banner", summary="Subir imagen/banner para una oferta")
+async def upload_banner(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+):
+    """Sube una imagen a GCS y devuelve la URL pública."""
+    import uuid
+    from google.cloud import storage as gcs
+
+    allowed = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if file.content_type not in allowed:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Solo se permiten imágenes (JPEG, PNG, WebP, GIF)")
+
+    try:
+        sa_info = json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON", "{}"))
+        client = gcs.Client.from_service_account_info(sa_info)
+        bucket = client.bucket(os.getenv("GOOGLE_STORAGE_BUCKET", ""))
+
+        ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+        blob_name = f"job-banners/{uuid.uuid4().hex}.{ext}"
+        blob = bucket.blob(blob_name)
+
+        contents = await file.read()
+        blob.upload_from_string(contents, content_type=file.content_type)
+        blob.make_public()
+
+        return {"banner_url": blob.public_url}
+    except Exception:
+        logger.exception("Error uploading banner")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Error al subir imagen")
+
+
+# ═════════════ Auto-generate tags endpoint ═════════════
+
+class GenerateTagsRequest(BaseModel):
+    title: str
+    description: str
+
+@router.post("/generate-tags", summary="Generar tags automáticos para una oferta")
+async def generate_tags_endpoint(data: GenerateTagsRequest):
+    tags = _generate_tags(data.title, data.description)
+    return {"tags": tags}
 

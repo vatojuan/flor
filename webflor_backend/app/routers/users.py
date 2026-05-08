@@ -49,8 +49,8 @@ def get_current_user():
 @router.get("/{user_id}/public-profile")
 async def get_public_profile(user_id: int):
     """
-    Devuelve información pública de un candidato (empleado).
-    No requiere autenticación.
+    Devuelve información pública de un candidato (empleado),
+    incluyendo resumen de reputación y reseñas recientes.
     """
     conn = None
     try:
@@ -62,12 +62,12 @@ async def get_public_profile(user_id: int):
             (user_id, "empleado"),
         )
         row = cur.fetchone()
-        cur.close()
 
         if not row:
+            cur.close()
             raise HTTPException(404, "Candidato no encontrado")
 
-        return {
+        profile = {
             "id": row[0],
             "name": row[1],
             "rubro": row[2],
@@ -76,6 +76,55 @@ async def get_public_profile(user_id: int):
             "profilePicture": row[5],
             "cvUrl": row[6],
         }
+
+        # Reputation summary
+        cur.execute("""
+            SELECT ROUND(AVG(rating)::numeric, 1), COUNT(*)::int
+              FROM reviews WHERE candidate_id = %s
+        """, (user_id,))
+        avg_rating, review_count = cur.fetchone()
+
+        cur.execute("""
+            SELECT COUNT(*)::int FROM reviews
+             WHERE candidate_id = %s AND rating >= 4
+        """, (user_id,))
+        positive_reviews = cur.fetchone()[0]
+
+        cur.execute("""
+            SELECT COUNT(DISTINCT job_id)::int FROM proposals
+             WHERE applicant_id = %s AND status = 'accepted'
+        """, (user_id,))
+        jobs_completed = cur.fetchone()[0]
+
+        profile["reputation"] = {
+            "avgRating": float(avg_rating) if avg_rating else None,
+            "reviewCount": review_count,
+            "jobsCompleted": jobs_completed,
+            "badgeVerified": positive_reviews >= 5,
+        }
+
+        # Recent reviews (last 10)
+        cur.execute("""
+            SELECT r.id, r.rating, r.comment, r.created_at,
+                   e.name AS employer_name, j.title AS job_title
+              FROM reviews r
+              JOIN "User" e ON e.id = r.employer_id
+              LEFT JOIN "Job" j ON j.id = r.job_id
+             WHERE r.candidate_id = %s
+             ORDER BY r.created_at DESC
+             LIMIT 10
+        """, (user_id,))
+        cols = [d[0] for d in cur.description]
+        reviews = []
+        for r in cur.fetchall():
+            d = dict(zip(cols, r))
+            if d.get("created_at"):
+                d["created_at"] = d["created_at"].isoformat()
+            reviews.append(d)
+        profile["reviews"] = reviews
+
+        cur.close()
+        return profile
     except HTTPException:
         raise
     except Exception as e:

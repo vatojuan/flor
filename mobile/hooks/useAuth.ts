@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { getToken, setToken, removeToken, parseJwt } from '../services/api';
-import { loginWithCredentials } from '../services/auth';
+import { loginWithCredentials, loginWithGoogle as loginWithGoogleApi } from '../services/auth';
 
 export interface User {
   id: number;
@@ -14,6 +14,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -25,6 +26,7 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
   login: async () => {},
+  loginWithGoogle: async () => {},
   loginWithToken: async () => {},
   logout: async () => {},
   refreshUser: async () => {},
@@ -74,6 +76,18 @@ export function useAuthState() {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const data = await loginWithGoogleApi(idToken);
+    const jwt = data.token || data.access_token;
+    if (!jwt) throw new Error('No se recibio token');
+    await setToken(jwt);
+    const payload = parseJwt(jwt);
+    if (payload) {
+      setUser({ id: payload.sub, role: payload.role, name: payload.name });
+      setTokenState(jwt);
+    }
+  }, []);
+
   const loginWithTokenFn = useCallback(async (jwt: string) => {
     await setToken(jwt);
     const payload = parseJwt(jwt);
@@ -99,6 +113,7 @@ export function useAuthState() {
     isAuthenticated: !!user && !!token,
     isLoading,
     login,
+    loginWithGoogle,
     loginWithToken: loginWithTokenFn,
     logout,
     refreshUser,

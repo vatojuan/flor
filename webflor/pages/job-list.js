@@ -18,6 +18,7 @@ import {
   Stack,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import ReplayIcon from "@mui/icons-material/Replay";
 import useAuthUser from "../hooks/useAuthUser";
 import useSnackbar from "../hooks/useSnackbar";
 import DashboardLayout from "../components/DashboardLayout";
@@ -70,6 +71,9 @@ export default function JobList() {
   const [rubroFilter, setRubroFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [contractFilter, setContractFilter] = useState("");
+  const [modalityFilter, setModalityFilter] = useState("");
+  const [salaryFilter, setSalaryFilter] = useState("");
 
   /* ---- Derived: unique rubros for filter dropdown ---- */
   const rubros = useMemo(() => {
@@ -112,6 +116,23 @@ export default function JobList() {
       result = result.filter((j) => !j.is_paid);
     }
 
+    // Contract type filter
+    if (contractFilter) {
+      result = result.filter((j) => j.contract_type === contractFilter);
+    }
+
+    // Modality filter
+    if (modalityFilter) {
+      result = result.filter((j) => j.modality === modalityFilter);
+    }
+
+    // Salary filter
+    if (salaryFilter === "visible") {
+      result = result.filter(
+        (j) => j.salary_visible !== false && (j.salary_min || j.salary_max)
+      );
+    }
+
     // Sort: featured (is_paid) first, then newest
     result = [...result].sort((a, b) => {
       if (a.is_paid && !b.is_paid) return -1;
@@ -122,7 +143,7 @@ export default function JobList() {
     });
 
     return result;
-  }, [jobs, searchQuery, rubroFilter, dateFilter, typeFilter]);
+  }, [jobs, searchQuery, rubroFilter, dateFilter, typeFilter, contractFilter, modalityFilter, salaryFilter]);
 
   /* ---- Fetch jobs ---- */
   useEffect(() => {
@@ -250,6 +271,39 @@ export default function JobList() {
     }
   };
 
+  /* ---- Repeat offer to favorites ---- */
+  const [repeatingJobId, setRepeatingJobId] = useState(null);
+  const handleRepeatToFavorites = async (jobId) => {
+    if (!authToken) return;
+    setRepeatingJobId(jobId);
+    try {
+      const res = await fetch(`${API_BASE}/api/reputation/repeat-to-favorites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Error");
+      }
+      const data = await res.json();
+      showSnackbar(data.message, "success");
+      // Refresh jobs list
+      const jobsRes = await fetch(
+        `${API_BASE}/api/job/?userId=${userId}`,
+        { headers: { "Content-Type": "application/json" } }
+      );
+      if (jobsRes.ok) {
+        const { offers } = await jobsRes.json();
+        setJobs(offers.filter((j) => !j.expirationDate || new Date(j.expirationDate) > new Date()));
+      }
+    } catch (err) {
+      showSnackbar(err.message || "Error al repetir oferta", "error");
+    } finally {
+      setRepeatingJobId(null);
+    }
+  };
+
   /* ---- Delete job (empleador) ---- */
   const confirmDelete = async () => {
     const id = dialogs.delete.jobId;
@@ -365,6 +419,53 @@ export default function JobList() {
           </FormControl>
         </Stack>
 
+        {/* Second row of filters */}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ maxWidth: 900, mx: "auto", mb: 3 }}
+        >
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Contratacion</InputLabel>
+            <Select
+              value={contractFilter}
+              label="Contratacion"
+              onChange={(e) => setContractFilter(e.target.value)}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="ocasional">Ocasional</MenuItem>
+              <MenuItem value="temporal">Temporal</MenuItem>
+              <MenuItem value="contrato">Contrato</MenuItem>
+              <MenuItem value="efectivo">Efectivo</MenuItem>
+              <MenuItem value="freelance">Freelance</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Modalidad</InputLabel>
+            <Select
+              value={modalityFilter}
+              label="Modalidad"
+              onChange={(e) => setModalityFilter(e.target.value)}
+            >
+              <MenuItem value="">Todas</MenuItem>
+              <MenuItem value="presencial">Presencial</MenuItem>
+              <MenuItem value="remoto">Remoto</MenuItem>
+              <MenuItem value="hibrido">Hibrido</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Sueldo</InputLabel>
+            <Select
+              value={salaryFilter}
+              label="Sueldo"
+              onChange={(e) => setSalaryFilter(e.target.value)}
+            >
+              <MenuItem value="">Todas</MenuItem>
+              <MenuItem value="visible">Solo con sueldo visible</MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
+
         {/* Job grid */}
         {loadingJobs ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
@@ -404,19 +505,31 @@ export default function JobList() {
                         </Button>
 
                         {userRole === "empleador" ? (
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            onClick={() =>
-                              setDialogs((d) => ({
-                                ...d,
-                                delete: { open: true, jobId: job.id },
-                              }))
-                            }
-                          >
-                            Eliminar
-                          </Button>
+                          <>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<ReplayIcon />}
+                              disabled={repeatingJobId === job.id}
+                              onClick={() => handleRepeatToFavorites(job.id)}
+                              sx={{ fontSize: "0.75rem" }}
+                            >
+                              {repeatingJobId === job.id ? "Enviando..." : "A Favoritos"}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() =>
+                                setDialogs((d) => ({
+                                  ...d,
+                                  delete: { open: true, jobId: job.id },
+                                }))
+                              }
+                            >
+                              Eliminar
+                            </Button>
+                          </>
                         ) : !app ? (
                           <Button
                             size="small"

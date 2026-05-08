@@ -25,6 +25,8 @@ from app.email_utils import send_match_notification, send_admin_alert
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://fapmendoza.com").rstrip("/")
 MATCH_THRESHOLD: float = float(os.getenv("MATCH_THRESHOLD", "0.75"))
 RUBRO_BONUS: float = 0.05
+REPUTATION_BONUS: float = 0.03      # +3% for candidates with avg rating > 4.0
+FAVORITE_BONUS: float = 0.10        # +10% for employer's favorites
 NOTIFY_THRESHOLD: float = float(os.getenv("NOTIFY_THRESHOLD", "0.78"))
 
 oauth2_admin = OAuth2PasswordBearer(tokenUrl="/auth/admin-login")
@@ -81,35 +83,44 @@ def run_matching_for_job(job_id: int) -> None:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get job embedding, rubro, and payment status
+        # Get job embedding, rubro, payment status, and owner
         cur.execute(
-            'SELECT embedding, rubro, is_paid FROM "Job" WHERE id = %s AND embedding IS NOT NULL',
+            'SELECT embedding, rubro, is_paid, "userId" FROM "Job" WHERE id = %s AND embedding IS NOT NULL',
             (job_id,),
         )
         row = cur.fetchone()
         if not row:
             logger.info("Matching skipped: Job %s has no embedding", job_id)
             return
-        job_embedding, job_rubro, is_paid = row
+        job_embedding, job_rubro, is_paid, job_owner_id = row
 
         # Clear previous matches for this job
         cur.execute("DELETE FROM matches WHERE job_id = %s", (job_id,))
 
-        # Insert matches with combined score
+        # Insert matches with combined score including reputation + favorite bonuses
         cur.execute("""
             INSERT INTO matches (job_id, user_id, score, status)
             SELECT %s, u.id,
                    LEAST(1.0,
                        (1.0 - (u.embedding::vector <=> %s::vector))
                        + CASE WHEN u.rubro IS NOT NULL AND u.rubro = %s THEN %s ELSE 0 END
+                       + CASE WHEN rep.avg_rating > 4.0 THEN %s ELSE 0 END
+                       + CASE WHEN fav.id IS NOT NULL THEN %s ELSE 0 END
                    ),
                    'pending'
               FROM "User" u
+              LEFT JOIN LATERAL (
+                  SELECT AVG(r.rating) AS avg_rating
+                    FROM reviews r WHERE r.candidate_id = u.id
+              ) rep ON TRUE
+              LEFT JOIN favorites fav
+                ON fav.candidate_id = u.id AND fav.employer_id = %s
              WHERE u.embedding IS NOT NULL
                AND u.role = 'empleado'
                AND u.confirmed = TRUE
                AND COALESCE(u.active, TRUE) = TRUE
-        """, (job_id, job_embedding, job_rubro, RUBRO_BONUS))
+        """, (job_id, job_embedding, job_rubro, RUBRO_BONUS,
+              REPUTATION_BONUS, FAVORITE_BONUS, job_owner_id))
         conn.commit()
         logger.info("Inserted %d matches for job %s (is_paid=%s)", cur.rowcount, job_id, is_paid)
 

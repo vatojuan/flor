@@ -102,7 +102,18 @@ def get_admin_offers(request: Request, admin_sub: str = Depends(get_current_admi
               source,
               label,
               contact_email   AS "contactEmail",
-              contact_phone   AS "contactPhone"
+              contact_phone   AS "contactPhone",
+              contract_type,
+              modality,
+              location,
+              salary_min,
+              salary_max,
+              salary_visible,
+              benefits,
+              tags,
+              banner_url,
+              is_paid,
+              rubro
             FROM public."Job"
             ORDER BY id DESC;
         """)
@@ -161,6 +172,16 @@ async def update_admin_offer(request: Request):
     contact_phone = body.get("contactPhone") or body.get("contact_phone")
     source        = body.get("source", "admin")
     label         = body.get("label", "automatic")
+    # Enhanced fields
+    contract_type  = body.get("contract_type", "efectivo")
+    modality       = body.get("modality", "presencial")
+    location       = body.get("location")
+    salary_min     = body.get("salary_min")
+    salary_max     = body.get("salary_max")
+    salary_visible = body.get("salary_visible", True)
+    benefits       = body.get("benefits")
+    tags           = body.get("tags")
+    banner_url     = body.get("banner_url")
 
     if not (job_id and title and description and user_id):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Faltan campos obligatorios")
@@ -197,7 +218,16 @@ async def update_admin_offer(request: Request):
                    label            = %s,
                    contact_email    = %s,
                    contact_phone    = %s,
-                   embedding        = %s
+                   embedding        = %s,
+                   contract_type    = %s,
+                   modality         = %s,
+                   location         = %s,
+                   salary_min       = %s,
+                   salary_max       = %s,
+                   salary_visible   = %s,
+                   benefits         = %s,
+                   tags             = %s,
+                   banner_url       = %s
              WHERE id = %s
          RETURNING
                    id,
@@ -209,12 +239,25 @@ async def update_admin_offer(request: Request):
                    source,
                    label,
                    contact_email   AS "contactEmail",
-                   contact_phone   AS "contactPhone";
+                   contact_phone   AS "contactPhone",
+                   contract_type,
+                   modality,
+                   location,
+                   salary_min,
+                   salary_max,
+                   salary_visible,
+                   benefits,
+                   tags,
+                   banner_url;
         """, (
             title, description, requirements, exp_date,
             user_id, source, label,
             contact_email, contact_phone,
-            embedding, job_id,
+            embedding,
+            contract_type, modality, location,
+            salary_min, salary_max, salary_visible,
+            benefits, tags, banner_url,
+            job_id,
         ))
         upd = cur.fetchone()
         if not upd:
@@ -224,7 +267,10 @@ async def update_admin_offer(request: Request):
         keys  = [
             "id","title","description","requirements",
             "expirationDate","userId","source","label",
-            "contactEmail","contactPhone"
+            "contactEmail","contactPhone",
+            "contract_type","modality","location",
+            "salary_min","salary_max","salary_visible",
+            "benefits","tags","banner_url"
         ]
         offer = dict(zip(keys, upd))
         if offer["expirationDate"]:

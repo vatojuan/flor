@@ -24,8 +24,14 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import StarIcon from "@mui/icons-material/Star";
+import RateReviewIcon from "@mui/icons-material/RateReview";
+import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
+import VerifiedIcon from "@mui/icons-material/Verified";
 import useSnackbar from "../hooks/useSnackbar";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import Rating from "@mui/material/Rating";
+import Divider from "@mui/material/Divider";
 
 export default function ProfileEmpleado() {
   const { data: session, status, update } = useSession();
@@ -73,6 +79,10 @@ export default function ProfileEmpleado() {
 
   // Confirm-dialog state: account delete
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+
+  // Reputation state
+  const [reputation, setReputation] = useState(null);
+  const [reviews, setReviews] = useState([]);
 
   // --------------- Account delete ---------------
   const toggleActive = async () => {
@@ -153,6 +163,23 @@ export default function ProfileEmpleado() {
       router.push("/login");
     }
   }, [session, status, router]);
+
+  // --------------- Load reputation ---------------
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const uid = session.user.id;
+
+    fetch(`${API_URL}/api/reputation/summary/${uid}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setReputation(data); })
+      .catch(() => {});
+
+    fetch(`${API_URL}/api/reputation/reviews/${uid}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setReviews(data); })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   // --------------- Profile update ---------------
   const handleProfileUpdate = async (e) => {
@@ -351,7 +378,75 @@ export default function ProfileEmpleado() {
           )}
         </Paper>
 
-        {/* ====== SECTION 2 — Documents ====== */}
+        {/* ====== SECTION 2 — Reputation ====== */}
+        {reputation && reputation.review_count > 0 && (
+          <Paper elevation={1} sx={{ ...paperSx, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Mi Reputacion
+            </Typography>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <StarIcon sx={{ color: "#FFB300", fontSize: 28 }} />
+                <Typography variant="h5" fontWeight={700}>
+                  {reputation.avg_rating || "—"}
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {reputation.review_count} {reputation.review_count === 1 ? "resena" : "resenas"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {reputation.jobs_completed} {reputation.jobs_completed === 1 ? "trabajo" : "trabajos"} completados
+              </Typography>
+              {reputation.badge_verified && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <VerifiedIcon sx={{ color: "#1976d2", fontSize: 20 }} />
+                  <Typography variant="body2" sx={{ color: "#1976d2", fontWeight: 600 }}>
+                    Verificado
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {reviews.length > 0 && (
+              <>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Resenas recientes
+                </Typography>
+                {reviews.slice(0, 5).map((review, idx) => (
+                  <Box key={review.id}>
+                    {idx > 0 && <Divider sx={{ my: 1.5 }} />}
+                    <Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                        <Rating value={review.rating} readOnly size="small" />
+                        <Typography variant="body2" fontWeight={600}>
+                          {review.employer_name || "Empleador"}
+                        </Typography>
+                      </Box>
+                      {review.job_title && (
+                        <Typography variant="caption" color="text.secondary">
+                          Trabajo: {review.job_title}
+                        </Typography>
+                      )}
+                      {review.comment && (
+                        <Typography variant="body2" sx={{ mt: 0.5 }}>
+                          &ldquo;{review.comment}&rdquo;
+                        </Typography>
+                      )}
+                      {review.created_at && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                          {new Date(review.created_at).toLocaleDateString("es-AR")}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </>
+            )}
+          </Paper>
+        )}
+
+        {/* ====== SECTION 3 — Documents ====== */}
         <Paper elevation={1} sx={{ ...paperSx, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Documentos
