@@ -25,7 +25,7 @@ import useAdminAuth from "../../hooks/useAdminAuth";
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 // --- CORRECCIÓN: Añadir la barra (/) al final de los endpoints ---
 const CONFIG_ENDPOINT = `${BASE}/api/admin/config/`; 
-const REGENERATE_ENDPOINT = `${BASE}/api/cv/regenerate-all-profiles/`;
+const REGENERATE_ENDPOINT = `${BASE}/cv/regenerate-all-profiles/`;
 
 export default function Configuraciones({ toggleDarkMode, currentMode }) {
   const { user, loading } = useAdminAuth();

@@ -45,7 +45,7 @@ def generate_secure_password(length=12):
     hashed = bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt())
     return plain_password, hashed.decode('utf-8')
 
-# ⬅️ IMPORTANTE: con root_path="/api", el prefijo del router debe ser SOLO "/cv"
+# El prefijo es "/cv" (sin /api) — consistente con cv_upload y las llamadas del frontend
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 def extract_text_from_pdf(pdf_bytes):
