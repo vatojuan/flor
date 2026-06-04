@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = [
+    "unit: prueba unitaria pura (sin servicios externos; corre en cualquier lado y en CI)",
+    "integration: prueba de integración (requiere servicios reales: DB/Supabase/OpenAI/GCS)",
+]

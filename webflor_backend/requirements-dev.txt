@@ -1,0 +1,3 @@
+# Dependencias solo de test. Los unitarios NO importan deps pesadas (torch/openai/supabase),
+# por eso el CI instala esto y no requirements.txt. Ver skill run-tests.
+pytest>=8.0,<9

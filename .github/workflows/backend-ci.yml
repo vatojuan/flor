@@ -1,0 +1,37 @@
+# CI por path: este workflow solo corre cuando cambia webflor_backend.
+# Para sumar otra app, copiar este archivo (p. ej. mobile-ci.yml con paths: mobile/**
+# y jest-expo, o web-ci.yml con vitest). Cada app = un workflow scopeado por path.
+name: backend-ci
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'webflor_backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'webflor_backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  unit-tests:
+    name: webflor_backend · unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webflor_backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # matchea el Dockerfile de prod
+
+      # Solo deps de test: los unitarios no importan torch/openai/supabase.
+      - name: Install test deps
+        run: pip install -r requirements-dev.txt
+
+      # Gate: si esto falla, el PR no debe mergearse. Integración no corre acá.
+      - name: Run unit tests
+        run: pytest tests/unit
