@@ -31,7 +31,9 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
   const { user, loading } = useAdminAuth();
   const [config, setConfig] = useState({
     show_expired_admin_offers: false,
-    show_expired_employer_offers: false
+    show_expired_employer_offers: false,
+    // Default true = comportamiento histórico (los mails salen salvo que se apague acá)
+    matching_emails_enabled: true
   });
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -78,7 +80,9 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
       .then(data => {
         setConfig({
           show_expired_admin_offers: data.show_expired_admin_offers === true || data.show_expired_admin_offers === "true",
-          show_expired_employer_offers: data.show_expired_employer_offers === true || data.show_expired_employer_offers === "true"
+          show_expired_employer_offers: data.show_expired_employer_offers === true || data.show_expired_employer_offers === "true",
+          // Si la key nunca se seteó viene undefined → default activado (true)
+          matching_emails_enabled: data.matching_emails_enabled !== false && data.matching_emails_enabled !== "false"
         });
       })
       .catch(() => {});
@@ -182,6 +186,24 @@ export default function Configuraciones({ toggleDarkMode, currentMode }) {
             }
             label="Mostrar ofertas expiradas de empleadores"
           />
+
+          <Divider sx={{ my: 2 }} />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={config.matching_emails_enabled}
+                onChange={() => toggleKey("matching_emails_enabled")}
+              />
+            }
+            label="Enviar mails de coincidencia (matching) a candidatos"
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
+            Si está desactivado, el matching se sigue calculando y se ve en el panel de
+            Matchings, pero NO se envían los mails automáticos a los candidatos (ni el
+            reenvío manual). Útil para hacer pruebas publicando ofertas sin notificar.
+          </Typography>
+
           <Box sx={{ mt: 2 }}>
             <Button variant="contained" onClick={save}>
               Guardar cambios

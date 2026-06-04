@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from app.database import get_db_connection
 from app.core.auth import SECRET_KEY, ALGORITHM
 from app.email_utils import send_match_notification, send_admin_alert
+from app.services.admin_settings import matching_emails_enabled
 
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://fapmendoza.com").rstrip("/")
 MATCH_THRESHOLD: float = float(os.getenv("MATCH_THRESHOLD", "0.75"))
@@ -146,7 +147,16 @@ def run_matching_for_job(job_id: int) -> None:
 
 
 def _send_match_notifications(conn, cur, job_id: int) -> int:
-    """Send notification emails for matches above threshold. Returns count sent."""
+    """Send notification emails for matches above threshold. Returns count sent.
+
+    Gate central: si el admin desactivó el envío de mails de coincidencia
+    (flag matching_emails_enabled en admin_config), no se envía nada. Cubre tanto
+    el envío automático (oferta paga) como el manual masivo del panel admin.
+    """
+    if not matching_emails_enabled(cur):
+        logger.info("Match emails disabled by admin — skipping notifications for job %s", job_id)
+        return 0
+
     backend_url = os.getenv("BACKEND_URL", "https://api.fapmendoza.online")
     cur.execute("""
         SELECT m.id, m.score, u.id, u.name, u.email, j.title
@@ -330,6 +340,16 @@ def admin_send_notifications(job_id: int):
             raise HTTPException(404, "Oferta no encontrada")
 
         job_title, is_paid = row
+
+        if not matching_emails_enabled(cur):
+            return {
+                "message": "El envío de mails de coincidencia está desactivado en Configuraciones. No se envió ninguno.",
+                "sent": 0,
+                "job_id": job_id,
+                "is_paid": is_paid,
+                "disabled": True,
+            }
+
         sent_count = _send_match_notifications(conn, cur, job_id)
 
         return {
@@ -355,6 +375,13 @@ def resend_matching(match_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+
+        if not matching_emails_enabled(cur):
+            raise HTTPException(
+                status_code=403,
+                detail="El envío de mails de coincidencia está desactivado en Configuraciones.",
+            )
+
         cur.execute("""
             SELECT m.score, m.apply_token, u.name, u.email, j.title
               FROM matches m
