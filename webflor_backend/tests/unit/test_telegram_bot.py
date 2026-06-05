@@ -367,6 +367,23 @@ def test_parse_photo_ignores_non_image_document():
     assert telegram_bot.parse_photo(_document_update(7, "DOC3", "application/pdf")) is None
 
 
+@pytest.mark.parametrize(
+    "file_path,header_ct,content,expected",
+    [
+        # imagen como documento: Telegram manda octet-stream; la extensión .jpg manda
+        ("documents/file_5.jpg", "application/octet-stream", b"\xff\xd8\xff\xe0", "image/jpeg"),
+        ("documents/file_2.png", "application/octet-stream", b"\x89PNG\r\n\x1a\n", "image/png"),
+        # header image/* manda cuando es válido
+        ("file_9", "image/webp", b"whatever", "image/webp"),
+        # sin extensión útil ni header de imagen → magic bytes
+        ("file_x", None, b"\xff\xd8\xff\x00rest", "image/jpeg"),
+        ("file_y", "application/octet-stream", b"\x89PNG\r\n\x1a\nrest", "image/png"),
+    ],
+)
+def test_guess_image_media_type(file_path, header_ct, content, expected):
+    assert telegram_bot._guess_image_media_type(file_path, header_ct, content) == expected
+
+
 def test_image_document_from_authorized_extracts(monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "5")
     rec = _Recorder()

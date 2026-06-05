@@ -173,10 +173,45 @@ def send_message(chat_id: int, text: str) -> None:
         logger.error("Error enviando mensaje a Telegram (chat %s): %s", chat_id, e)
 
 
+_IMAGE_EXT_TO_MIME = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".webp": "image/webp", ".gif": "image/gif",
+}
+
+
+def _guess_image_media_type(file_path: str, header_content_type, content: bytes) -> str:
+    """Determina un media_type de imagen válido para la API de visión.
+
+    Telegram sirve las imágenes enviadas como **documento** con Content-Type
+    'application/octet-stream'; pasarle eso a OpenAI Vision (`data:application/octet-stream;…`)
+    hace fallar la extracción. Orden de preferencia: header `image/*` → extensión del
+    `file_path` → magic bytes → `image/jpeg` por defecto.
+    """
+    ct = header_content_type if isinstance(header_content_type, str) else ""
+    ct = ct.split(";")[0].strip().lower()
+    if ct.startswith("image/"):
+        return ct
+    ext = os.path.splitext(file_path or "")[1].lower()
+    if ext in _IMAGE_EXT_TO_MIME:
+        return _IMAGE_EXT_TO_MIME[ext]
+    head = content[:12] if content else b""
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    return "image/jpeg"
+
+
 def download_telegram_file(file_id: str) -> tuple[bytes, str]:
     """Descarga un archivo de Telegram por `file_id`. Devuelve `(bytes, media_type)`.
 
-    Resuelve el `file_path` con getFile y baja el binario del file API. `requests` lazy.
+    Resuelve el `file_path` con getFile y baja el binario del file API. El media_type se
+    deriva de forma robusta (no se confía en el Content-Type, que para documentos suele ser
+    octet-stream y rompe la visión). `requests` lazy.
     """
     token = _bot_token()
     if not token:
@@ -193,7 +228,7 @@ def download_telegram_file(file_id: str) -> tuple[bytes, str]:
 
     binary = requests.get(f"{TELEGRAM_API_BASE}/file/bot{token}/{file_path}", timeout=60)
     binary.raise_for_status()
-    media_type = binary.headers.get("Content-Type", "image/jpeg")
+    media_type = _guess_image_media_type(file_path, binary.headers.get("Content-Type"), binary.content)
     return binary.content, media_type
 
 
