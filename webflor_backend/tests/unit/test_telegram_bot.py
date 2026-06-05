@@ -343,3 +343,41 @@ def test_photo_from_unauthorized_does_not_extract(monkeypatch):
     )
     assert touched == []          # no descargó ni extrajo nada
     assert any("autoriz" in t.lower() for _, t in rec.sent)
+
+
+def _document_update(chat_id, file_id="DOC", mime="image/jpeg"):
+    """Update con una imagen enviada como archivo/documento (no comprimida)."""
+    return {
+        "update_id": 3,
+        "message": {
+            "message_id": 11,
+            "chat": {"id": chat_id, "type": "private"},
+            "document": {"file_id": file_id, "mime_type": mime, "file_name": "oferta.jpg"},
+        },
+    }
+
+
+def test_parse_photo_detects_image_document():
+    assert telegram_bot.parse_photo(_document_update(7, "DOC1", "image/jpeg")) == (7, "DOC1")
+    assert telegram_bot.parse_photo(_document_update(7, "DOC2", "image/png")) == (7, "DOC2")
+
+
+def test_parse_photo_ignores_non_image_document():
+    # un PDF u otro archivo no-imagen no se trata como oferta
+    assert telegram_bot.parse_photo(_document_update(7, "DOC3", "application/pdf")) is None
+
+
+def test_image_document_from_authorized_extracts(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "5")
+    rec = _Recorder()
+    pending = {}
+    telegram_bot.process_update(
+        _document_update(5, "DOC1", "image/jpeg"),
+        send=rec.send,
+        pending_jobs=pending,
+        download_photo=lambda fid: (b"bytes", "image/jpeg"),
+        extract_job=lambda b, mt: {"success": True, "job": {"title": "Mozo", "description": "d"}},
+        conversations={},
+    )
+    assert 5 in pending                                  # se extrajo y quedó pendiente
+    assert any("public" in t.lower() for _, t in rec.sent)

@@ -108,28 +108,42 @@ def parse_message(update: dict) -> Optional[tuple[int, str]]:
 
 
 def parse_photo(update: dict) -> Optional[tuple[int, str]]:
-    """Extrae `(chat_id, file_id)` de un update con foto, tomando la de mayor resolución.
+    """Extrae `(chat_id, file_id)` de un update con imagen.
 
-    Telegram manda `message.photo` como una lista de `PhotoSize` ordenada de menor a
-    mayor; el último es el de máxima resolución. None si el update no trae foto.
+    Soporta las dos formas en que Telegram entrega una imagen:
+      - foto comprimida: `message.photo` (lista de `PhotoSize`; el último es el de mayor
+        resolución);
+      - imagen como archivo: `message.document` con `mime_type` `image/*` (p. ej. un .jpg
+        adjunto sin comprimir — así la mandan muchos al reenviar un aviso).
+    None si el update no trae una imagen procesable.
     """
     if not isinstance(update, dict):
         return None
     message = update.get("message") or update.get("edited_message")
     if not isinstance(message, dict):
         return None
-    photos = message.get("photo")
-    if not isinstance(photos, list) or not photos:
-        return None
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
     if not isinstance(chat_id, int):
         return None
-    last = photos[-1]
-    file_id = last.get("file_id") if isinstance(last, dict) else None
-    if not file_id:
-        return None
-    return chat_id, file_id
+
+    # Foto comprimida: el último PhotoSize es el de mayor resolución.
+    photos = message.get("photo")
+    if isinstance(photos, list) and photos:
+        last = photos[-1]
+        file_id = last.get("file_id") if isinstance(last, dict) else None
+        if file_id:
+            return chat_id, file_id
+
+    # Imagen enviada como archivo/documento (mime image/*).
+    document = message.get("document")
+    if isinstance(document, dict):
+        file_id = document.get("file_id")
+        mime = document.get("mime_type") or ""
+        if file_id and isinstance(mime, str) and mime.startswith("image/"):
+            return chat_id, file_id
+
+    return None
 
 
 def send_message(chat_id: int, text: str) -> None:

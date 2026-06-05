@@ -31,8 +31,10 @@ explícitamente autorizados pueden hablarle.
 - [ ] `/start` (autorizado) responde bienvenida sin invocar al agente.
 
 ### Publicación de ofertas por foto
-- [ ] `parse_photo(update)` devuelve `(chat_id, file_id)` tomando la foto de **mayor
-  resolución** (último `PhotoSize`); `None` si el update no trae foto.
+- [ ] `parse_photo(update)` devuelve `(chat_id, file_id)`: para fotos comprimidas toma el
+  `PhotoSize` de **mayor resolución** (último); también acepta imágenes enviadas como
+  **documento** (`message.document` con `mime_type` `image/*`, p. ej. un .jpg adjunto sin
+  comprimir). `None` si el update no trae imagen.
 - [ ] `parse_extraction_response(raw)` limpia fences markdown, parsea el JSON y normaliza
   a `{"success": True, "job": {...}}` o `{"success": False, "error": ...}`. (→ `tests/unit/test_job_extraction.py`)
 - [ ] `build_job_payload(extracted)` mapea los campos extraídos al payload de
