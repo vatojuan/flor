@@ -72,7 +72,9 @@ def extract_job_from_image(image_bytes: bytes, media_type: str, *, client: Any =
 
     b64_image = base64.b64encode(image_bytes).decode("utf-8")
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        # gpt-4o soporta visión (image_url); gpt-4-turbo NO lo hace con nuestra cuenta
+        # y devuelve "Invalid content type. image_url is only supported by certain models".
+        model="gpt-4o",
         messages=[
             {
                 "role": "user",
