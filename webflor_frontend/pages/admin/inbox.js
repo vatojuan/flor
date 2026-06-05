@@ -12,6 +12,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import InboxIcon from "@mui/icons-material/Inbox";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
+import { summarizeScan } from "../../lib/scanSummary";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.fapmendoza.online";
 
@@ -84,11 +85,11 @@ export default function InboxPage() {
   };
 
   const handleFirstSync = async () => {
-    if (!confirm("Primera sincronizacion: esto va a leer TODOS los emails (leidos y no leidos) de todas las cuentas y procesar los CVs. Puede tardar varios minutos. Continuar?")) return;
+    if (!confirm("Sincronizacion completa: lee TODOS los emails (leidos y no leidos) de todas las cuentas, sin tope, y procesa los CVs. Tambien adjunta el CV a las cuentas que se hayan creado sin archivo (saneamiento). Puede tardar varios minutos. Continuar?")) return;
     setScanning("sync");
     setScanResults(null);
     try {
-      const res = await fetch(`${API_URL}/api/inbox/scan-all?scan_all=true&max_emails=500`, { method: "POST", headers });
+      const res = await fetch(`${API_URL}/api/inbox/scan-all?scan_all=true&max_emails=0`, { method: "POST", headers });
       const data = await res.json();
       setScanResults(data);
       fetchAccounts();
@@ -114,6 +115,8 @@ export default function InboxPage() {
     }
   };
 
+  const scanSummary = summarizeScan(scanResults);
+
   return (
     <DashboardLayout>
       <Box sx={{ p: 3, maxWidth: 1000, mx: "auto" }}>
@@ -126,7 +129,7 @@ export default function InboxPage() {
             <Button variant="outlined" color="warning"
               startIcon={scanning === "sync" ? <CircularProgress size={16} /> : <SyncIcon />}
               onClick={handleFirstSync} disabled={!!scanning || accounts.length === 0}>
-              Primera sincronizacion
+              Sincronizacion completa
             </Button>
             <Button variant="outlined" startIcon={scanning === "all" ? <CircularProgress size={16} /> : <SyncIcon />}
               onClick={handleScanAll} disabled={!!scanning || accounts.length === 0}>
@@ -186,40 +189,58 @@ export default function InboxPage() {
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography fontWeight={600}>
                 Resultados del ultimo scan
-                {scanResults.processed !== undefined && ` — ${scanResults.processed} emails procesados`}
+                {scanSummary.text && ` — ${scanSummary.text}`}
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
               {scanResults.error ? (
                 <Alert severity="error">{scanResults.error}</Alert>
-              ) : scanResults.results ? (
-                // scan-all results
-                scanResults.results.map((r, i) => (
-                  <Box key={i} sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2">{r.account}</Typography>
-                    <Typography variant="body2">
-                      Procesados: {r.processed} | CVs: {r.cvs} | Propuestas: {r.proposals} | Consultas: {r.inquiries}
-                    </Typography>
-                  </Box>
-                ))
               ) : (
-                <Box>
-                  <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item><Chip label={`CVs: ${scanResults.cvs || 0}`} color="success" /></Grid>
-                    <Grid item><Chip label={`Propuestas: ${scanResults.proposals || 0}`} color="primary" /></Grid>
-                    <Grid item><Chip label={`Consultas: ${scanResults.inquiries || 0}`} color="info" /></Grid>
-                    <Grid item><Chip label={`Errores: ${scanResults.errors || 0}`} color="error" /></Grid>
-                  </Grid>
-                  {scanResults.details && scanResults.details.map((d, i) => (
-                    <Typography key={i} variant="body2" sx={{ mb: 0.5 }}>
-                      {d.category && <Chip label={d.category} size="small" sx={{ mr: 1 }} />}
-                      {d.from} — {d.subject}
-                      {d.cv_processed && d.cv_processed.status === "created" && (
-                        <Chip label={`Cuenta creada: ${d.cv_processed.email}`} size="small" color="success" sx={{ ml: 1 }} />
-                      )}
-                    </Typography>
-                  ))}
-                </Box>
+                <>
+                  {scanSummary.remaining > 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Faltan {scanSummary.remaining} emails por procesar (se proceso un lote).
+                      Usa "Sincronizacion completa" para procesar todo el inbox de una.
+                    </Alert>
+                  )}
+                  {scanResults.results ? (
+                    // scan-all results
+                    scanResults.results.map((r, i) => (
+                      <Box key={i} sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2">{r.account}</Typography>
+                        <Typography variant="body2">
+                          Procesados: {r.processed} de {r.total_found ?? r.processed} | CVs: {r.cvs} | Propuestas: {r.proposals} | Consultas: {r.inquiries}
+                          {r.remaining > 0 && ` | Faltan: ${r.remaining}`}
+                        </Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Box>
+                      <Grid container spacing={2} sx={{ mb: 2 }}>
+                        <Grid item><Chip label={`Encontrados: ${scanSummary.totalFound}`} variant="outlined" /></Grid>
+                        <Grid item><Chip label={`CVs: ${scanResults.cvs || 0}`} color="success" /></Grid>
+                        <Grid item><Chip label={`Propuestas: ${scanResults.proposals || 0}`} color="primary" /></Grid>
+                        <Grid item><Chip label={`Consultas: ${scanResults.inquiries || 0}`} color="info" /></Grid>
+                        <Grid item><Chip label={`Errores: ${scanResults.errors || 0}`} color="error" /></Grid>
+                        {scanSummary.remaining > 0 && (
+                          <Grid item><Chip label={`Faltan: ${scanSummary.remaining}`} color="warning" /></Grid>
+                        )}
+                      </Grid>
+                      {scanResults.details && scanResults.details.map((d, i) => (
+                        <Typography key={i} variant="body2" sx={{ mb: 0.5 }}>
+                          {d.category && <Chip label={d.category} size="small" sx={{ mr: 1 }} />}
+                          {d.from} — {d.subject}
+                          {d.cv_processed && d.cv_processed.status === "created" && (
+                            <Chip label={`Cuenta creada: ${d.cv_processed.email}`} size="small" color="success" sx={{ ml: 1 }} />
+                          )}
+                          {d.cv_processed && d.cv_processed.status === "attached" && (
+                            <Chip label={`CV adjuntado: ${d.cv_processed.email}`} size="small" color="info" sx={{ ml: 1 }} />
+                          )}
+                        </Typography>
+                      ))}
+                    </Box>
+                  )}
+                </>
               )}
             </AccordionDetails>
           </Accordion>
