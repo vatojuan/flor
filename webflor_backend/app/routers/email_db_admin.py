@@ -15,7 +15,7 @@ from openai import OpenAI
 
 # ──────────────────────────── Config ────────────────────────────
 from app.core.auth import SECRET_KEY, ALGORITHM
-from app.utils.email_extraction import extract_email as _canon_extract_email
+from app.utils.email_extraction import extract_email as _canon_extract_email, classify_email
 
 load_dotenv()
 
@@ -51,7 +51,6 @@ def db():
         sslmode="require",
     )
 
-EMAIL_RE  = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 PHONE_RE  = re.compile(r"\+?\d[\d\s\-]{8,}")
 
 # ───────────────────── Funciones auxiliares ─────────────────────
@@ -152,9 +151,12 @@ async def add_manual(payload: dict):
     """
     Alta manual de contacto
     """
-    email = payload.get("email", "").lower().strip()
-    if not EMAIL_RE.fullmatch(email):
+    # Misma fuente de verdad que /upload: limpia basura pegada al TLD y valida contra IANA.
+    # Acepta clean/auto_fix (recortando lo pegado); rechaza typos/TLD inválido/dudosos.
+    label, value = classify_email(payload.get("email", "").strip())
+    if label not in ("clean", "auto_fix") or not value:
         raise HTTPException(400, "E-mail inválido")
+    email = value.lower()
 
     conn, cur = db(), None
     try:

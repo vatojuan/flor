@@ -67,9 +67,10 @@ def recover_from_cv(cv_url):
         return None
     try:
         import io
+        import urllib.parse
         from PyPDF2 import PdfReader
 
-        path = cv_url[len(GCS_PREFIX):].split("/", 1)[1]  # quita el nombre del bucket
+        path = urllib.parse.unquote(cv_url[len(GCS_PREFIX):]).split("/", 1)[1]  # quita el bucket
         blob = _get_bucket().blob(path)
         if not blob.exists():
             return None
