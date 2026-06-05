@@ -4,7 +4,7 @@ import {
   InputLabel, Paper, Chip, Alert, CircularProgress, Grid, Divider,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab,
-  IconButton, Tooltip, InputAdornment,
+  IconButton, Tooltip, InputAdornment, Avatar,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import PreviewIcon from "@mui/icons-material/Preview";
@@ -14,6 +14,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
 import PeopleIcon from "@mui/icons-material/People";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import DescriptionIcon from "@mui/icons-material/Description";
+import DownloadIcon from "@mui/icons-material/Download";
+import EmailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
 
@@ -47,6 +51,101 @@ export default function MailingPage() {
   );
 }
 
+// ═══════════ Detalle de contacto (compartido: Contactos + Miembros) ═══════════
+function ContactDetailDialog({ contactId, headers, onClose }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [downloadErr, setDownloadErr] = useState(null);
+
+  useEffect(() => {
+    if (!contactId) { setDetail(null); return; }
+    setLoading(true); setDetail(null); setDownloadErr(null);
+    fetch(`${API_URL}/api/mailing/contacts/${contactId}`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(setDetail)
+      .catch(() => setDetail(null))
+      .finally(() => setLoading(false));
+  }, [contactId]);
+
+  const handleDownload = async (fileId) => {
+    setDownloadErr(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/users/files/${fileId}/signed-url`, { headers });
+      const data = await res.json();
+      if (res.ok && data.url) window.open(data.url, "_blank");
+      else setDownloadErr(data.detail || "No se pudo generar el enlace de descarga");
+    } catch { setDownloadErr("Error de conexion al descargar"); }
+  };
+
+  return (
+    <Dialog open={!!contactId} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Detalle del contacto</DialogTitle>
+      <DialogContent dividers>
+        {loading ? <Box sx={{ textAlign: "center", py: 3 }}><CircularProgress /></Box>
+          : !detail ? <Typography color="text.secondary">No se pudo cargar el contacto.</Typography>
+          : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar src={detail.profilePicture || undefined} sx={{ width: 56, height: 56 }}>
+                {(detail.name || detail.email || "?").charAt(0).toUpperCase()}
+              </Avatar>
+              <Box>
+                <Typography variant="h6">{detail.name || "Sin nombre"}</Typography>
+                <Chip label={detail.rubro || "General"} size="small" variant="outlined" />
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <EmailIcon fontSize="small" color="action" />
+              <Typography variant="body2">{detail.email || "—"}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <PhoneIcon fontSize="small" color="action" />
+              <Typography variant="body2">{detail.phone || "Sin telefono"}</Typography>
+            </Box>
+
+            <Divider />
+
+            <Typography variant="subtitle2">Descripcion</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
+              {detail.description || "Sin descripcion"}
+            </Typography>
+
+            <Divider />
+
+            <Typography variant="subtitle2">CV y documentos</Typography>
+            {detail.cvUrl && (
+              <Button size="small" variant="outlined" startIcon={<DescriptionIcon />}
+                href={detail.cvUrl} target="_blank" rel="noopener" sx={{ alignSelf: "flex-start" }}>
+                Ver CV principal
+              </Button>
+            )}
+            {detail.files && detail.files.length > 0 ? (
+              detail.files.map(f => (
+                <Box key={f.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                  <Typography variant="body2" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {f.filename || `Documento ${f.id}`}
+                  </Typography>
+                  <Button size="small" startIcon={<DownloadIcon />} onClick={() => handleDownload(f.id)}>
+                    Descargar
+                  </Button>
+                </Box>
+              ))
+            ) : !detail.cvUrl ? (
+              <Typography variant="body2" color="text.secondary">Sin CV ni documentos cargados</Typography>
+            ) : null}
+
+            {downloadErr && <Alert severity="error" onClose={() => setDownloadErr(null)}>{downloadErr}</Alert>}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions><Button onClick={onClose}>Cerrar</Button></DialogActions>
+    </Dialog>
+  );
+}
+
 // ═══════════ TAB 1: Contactos ═══════════
 function ContactsTab({ headers }) {
   const [contacts, setContacts] = useState([]);
@@ -56,6 +155,7 @@ function ContactsTab({ headers }) {
   const [rubroFilter, setRubroFilter] = useState("");
   const [rubros, setRubros] = useState([]);
   const [page, setPage] = useState(1);
+  const [detailId, setDetailId] = useState(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/mailing/rubros`, { headers }).then(r => r.ok ? r.json() : []).then(d => setRubros(Array.isArray(d) ? d : [])).catch(() => {});
@@ -107,15 +207,23 @@ function ContactsTab({ headers }) {
                   <TableCell>Email</TableCell>
                   <TableCell>Telefono</TableCell>
                   <TableCell>Rubro</TableCell>
+                  <TableCell align="right">Detalle</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {contacts.map(c => (
-                  <TableRow key={c.id} hover>
+                  <TableRow key={c.id} hover sx={{ cursor: "pointer" }} onClick={() => setDetailId(c.id)}>
                     <TableCell>{c.name || "—"}</TableCell>
                     <TableCell>{c.email}</TableCell>
                     <TableCell>{c.phone || "—"}</TableCell>
                     <TableCell><Chip label={c.rubro || "General"} size="small" variant="outlined" /></TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Ver CV, contacto y descripcion">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDetailId(c.id); }}>
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -130,6 +238,8 @@ function ContactsTab({ headers }) {
           )}
         </>
       )}
+
+      <ContactDetailDialog contactId={detailId} headers={headers} onClose={() => setDetailId(null)} />
     </Box>
   );
 }
@@ -143,6 +253,7 @@ function GroupsTab({ headers }) {
   const [viewMembers, setViewMembers] = useState(null);
   const [members, setMembers] = useState([]);
   const [result, setResult] = useState(null);
+  const [memberDetailId, setMemberDetailId] = useState(null);
 
   const fetchGroups = () => {
     setLoading(true);
@@ -265,13 +376,21 @@ function GroupsTab({ headers }) {
               <Table size="small" stickyHeader>
                 <TableHead><TableRow>
                   <TableCell>Nombre</TableCell><TableCell>Email</TableCell><TableCell>Rubro</TableCell>
+                  <TableCell align="right">Detalle</TableCell>
                 </TableRow></TableHead>
                 <TableBody>
                   {members.map(m => (
-                    <TableRow key={m.id}>
+                    <TableRow key={m.id} hover sx={{ cursor: "pointer" }} onClick={() => setMemberDetailId(m.id)}>
                       <TableCell>{m.name}</TableCell>
                       <TableCell>{m.email}</TableCell>
                       <TableCell><Chip label={m.rubro || "General"} size="small" variant="outlined" /></TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Ver CV, contacto y descripcion">
+                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setMemberDetailId(m.id); }}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -281,6 +400,8 @@ function GroupsTab({ headers }) {
         </DialogContent>
         <DialogActions><Button onClick={() => setViewMembers(null)}>Cerrar</Button></DialogActions>
       </Dialog>
+
+      <ContactDetailDialog contactId={memberDetailId} headers={headers} onClose={() => setMemberDetailId(null)} />
     </Box>
   );
 }

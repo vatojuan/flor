@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.database import get_db_connection
 from app.utils.auth_utils import get_current_admin
 from app.email_utils import send_email
+from app.services.mailing_contacts import build_contact_detail
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/mailing", tags=["mailing"])
@@ -92,6 +93,25 @@ def list_contacts(
         contacts = [dict(zip(cols, row)) for row in cur.fetchall()]
 
         return {"total": total, "page": page, "per_page": per_page, "contacts": contacts}
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@router.get("/contacts/{user_id}", dependencies=[Depends(get_current_admin)])
+def get_contact_detail(user_id: int):
+    """Detalle de un contacto: datos de contacto, descripción, CV y documentos cargados.
+
+    Lo consumen tanto la pestaña Contactos como el "Ver miembros" de un grupo.
+    """
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        detail = build_contact_detail(cur, user_id)
+        if detail is None:
+            raise HTTPException(404, "Contacto no encontrado")
+        return detail
     finally:
         if cur: cur.close()
         if conn: conn.close()
