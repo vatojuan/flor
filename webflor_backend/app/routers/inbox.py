@@ -141,7 +141,7 @@ def delete_account(account_id: int):
 
 
 @router.post("/scan/{account_id}", dependencies=[Depends(get_current_admin)])
-def trigger_scan(account_id: int, scan_all: bool = Query(False, description="True para primera sincronizacion (lee todos los emails, no solo nuevos)"), max_emails: int = Query(20, description="Cantidad maxima de emails a procesar")):
+def trigger_scan(account_id: int, scan_all: bool = Query(False, description="True para primera sincronizacion: lee y procesa TODOS los emails (no solo nuevos) sin tope"), max_emails: int = Query(20, description="Tope para scans incrementales (UNSEEN). 0 = sin tope. Ignorado si scan_all=true")):
     """Manually trigger a scan. Use scan_all=true for first-time sync of all historical emails."""
     conn = cur = None
     try:
@@ -182,7 +182,7 @@ def trigger_scan(account_id: int, scan_all: bool = Query(False, description="Tru
 
 
 @router.post("/scan-all", dependencies=[Depends(get_current_admin)])
-def trigger_scan_all(scan_all: bool = Query(False, description="True para primera sincronizacion"), max_emails: int = Query(20, description="Cantidad maxima por cuenta")):
+def trigger_scan_all(scan_all: bool = Query(False, description="True para primera sincronizacion: procesa TODOS los emails de cada cuenta sin tope"), max_emails: int = Query(20, description="Tope por cuenta para scans incrementales (UNSEEN). 0 = sin tope. Ignorado si scan_all=true")):
     """Scan all enabled email accounts. Use scan_all=true for first-time historical sync."""
     conn = cur = None
     try:
