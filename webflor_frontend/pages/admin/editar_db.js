@@ -26,14 +26,26 @@ import {
   Grid,
   InputAdornment,
   TablePagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip,
+  Divider,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
 import SearchIcon from "@mui/icons-material/Search";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import DescriptionIcon from "@mui/icons-material/Description";
 import DashboardLayout from "../../components/DashboardLayout";
 import useAdminAuth from "../../hooks/useAdminAuth";
+import { getPreviewKind, buildUsersQuery } from "../../lib/filePreview";
+
+const EMPTY_PREVIEW = { open: false, loading: false, url: "", kind: "", filename: "", file: null };
 
 export default function EditarDB() {
   const { user, loading } = useAdminAuth();
@@ -41,6 +53,8 @@ export default function EditarDB() {
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [rubroFilter, setRubroFilter] = useState("");
+  const [rubrosList, setRubrosList] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [fetching, setFetching] = useState(false);
@@ -52,21 +66,24 @@ export default function EditarDB() {
   const [editedDescription, setEditedDescription] = useState("");
   const [editedFiles, setEditedFiles] = useState([]);
   const [newFile, setNewFile] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
+  const [viewUser, setViewUser] = useState(null);
+  const [previewDialog, setPreviewDialog] = useState(EMPTY_PREVIEW);
+
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, userId: null, userName: "" });
   const [fileDeleteDialog, setFileDeleteDialog] = useState({ open: false, fileId: null, fileName: "" });
 
   const getToken = () => typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
 
-  const fetchUsers = useCallback(async (p, limit, search) => {
+  const fetchUsers = useCallback(async (p, limit, search, rubro) => {
     const token = getToken();
     if (!token) return;
     setFetching(true);
     try {
-      const params = new URLSearchParams({ page: p + 1, limit, search });
+      const qs = buildUsersQuery({ page: p, limit, search, rubro });
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/users?${params}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users?${qs}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
@@ -83,9 +100,30 @@ export default function EditarDB() {
     }
   }, []);
 
+  const fetchRubros = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/rubros`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setRubrosList(data.rubros || []);
+      }
+    } catch {
+      /* el filtro de rubro es opcional; si falla, queda solo la busqueda de texto */
+    }
+  }, []);
+
   useEffect(() => {
-    if (!loading) fetchUsers(page, rowsPerPage, searchTerm);
-  }, [loading, page, rowsPerPage, searchTerm, fetchUsers]);
+    if (!loading) fetchUsers(page, rowsPerPage, searchTerm, rubroFilter);
+  }, [loading, page, rowsPerPage, searchTerm, rubroFilter, fetchUsers]);
+
+  useEffect(() => {
+    if (!loading) fetchRubros();
+  }, [loading, fetchRubros]);
 
   // Debounce search input
   useEffect(() => {
@@ -95,6 +133,8 @@ export default function EditarDB() {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  const refresh = () => fetchUsers(page, rowsPerPage, searchTerm, rubroFilter);
 
   const handleEditClick = (userItem) => {
     setSelectedUser(userItem);
@@ -138,7 +178,7 @@ export default function EditarDB() {
     });
     if (res && res.ok) {
       setSnackbar({ open: true, message: "Usuario actualizado", severity: "success" });
-      fetchUsers(page, rowsPerPage, searchTerm);
+      refresh();
       handleDialogClose();
     } else if (res) {
       const errorData = await res.json().catch(() => ({ detail: `Error al actualizar: ${res.statusText}` }));
@@ -150,7 +190,7 @@ export default function EditarDB() {
     const res = await handleApiCall(`/admin/users/${userId}`, { method: "DELETE" });
     if (res && res.ok) {
       setSnackbar({ open: true, message: "Usuario eliminado", severity: "success" });
-      fetchUsers(page, rowsPerPage, searchTerm);
+      refresh();
     } else if (res) {
       const errorData = await res.json().catch(() => ({ detail: `Error al eliminar: ${res.statusText}` }));
       setSnackbar({ open: true, message: errorData.detail, severity: "error" });
@@ -193,20 +233,75 @@ export default function EditarDB() {
     }
   };
 
-  const handleDownloadFile = async (file) => {
-    if (!selectedUser) return;
-    const res = await handleApiCall(`/admin/users/files/${file.id}/signed-url`, { method: "GET" });
+  // Pide una signed URL para un archivo. disposition="inline" => preview embebido;
+  // "attachment" => descarga. Devuelve { url, filename, content_type, previewable } o null.
+  const getSignedUrl = async (fileId, disposition = "inline") => {
+    const res = await handleApiCall(`/admin/users/files/${fileId}/signed-url?disposition=${disposition}`, { method: "GET" });
     if (res && res.ok) {
       const data = await res.json();
-      if (data.url) {
-        window.open(data.url, "_blank");
-      } else {
-        setSnackbar({ open: true, message: "La respuesta del servidor no contiene una URL.", severity: "error" });
-      }
-    } else if (res) {
-      const errorData = await res.json().catch(() => ({ detail: `Error ${res.status}: La ruta de descarga no existe en la API.` }));
+      if (data.url) return data;
+      setSnackbar({ open: true, message: "La respuesta del servidor no contiene una URL.", severity: "error" });
+      return null;
+    }
+    if (res) {
+      const errorData = await res.json().catch(() => ({ detail: `Error ${res.status}: no se pudo obtener el archivo.` }));
       setSnackbar({ open: true, message: errorData.detail, severity: "error" });
     }
+    return null;
+  };
+
+  const handlePreviewFile = async (file) => {
+    setPreviewDialog({ ...EMPTY_PREVIEW, open: true, loading: true, filename: file.filename, file });
+    const data = await getSignedUrl(file.id, "inline");
+    if (!data) {
+      setPreviewDialog(EMPTY_PREVIEW);
+      return;
+    }
+    setPreviewDialog({
+      open: true,
+      loading: false,
+      url: data.url,
+      kind: getPreviewKind(data.filename || file.filename, data.content_type),
+      filename: data.filename || file.filename,
+      file,
+    });
+  };
+
+  const handleDownloadFile = async (file) => {
+    const data = await getSignedUrl(file.id, "attachment");
+    if (data && data.url) window.open(data.url, "_blank");
+  };
+
+  const renderFileList = (files, { showDelete = false } = {}) => {
+    if (!files || files.length === 0) {
+      return <Typography variant="body2" color="text.secondary">No hay archivos subidos.</Typography>;
+    }
+    return files.map((file) => (
+      <Box
+        key={file.id}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", my: 1, p: 1, borderRadius: 1, bgcolor: "action.hover", "&:hover": { bgcolor: "action.selected" } }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <DescriptionIcon fontSize="small" color="action" />
+          <Typography variant="body2" noWrap sx={{ maxWidth: 320 }} title={file.filename}>{file.filename}</Typography>
+        </Box>
+        <Box sx={{ flexShrink: 0 }}>
+          <Tooltip title="Previsualizar">
+            <IconButton size="small" color="primary" onClick={() => handlePreviewFile(file)}><VisibilityIcon fontSize="small" /></IconButton>
+          </Tooltip>
+          <Tooltip title="Descargar">
+            <IconButton size="small" onClick={() => handleDownloadFile(file)}><DownloadIcon fontSize="small" /></IconButton>
+          </Tooltip>
+          {showDelete && (
+            <Tooltip title="Eliminar">
+              <IconButton size="small" onClick={() => setFileDeleteDialog({ open: true, fileId: file.id, fileName: file.filename })}>
+                <DeleteIcon fontSize="small" color="error" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </Box>
+    ));
   };
 
   if (loading) {
@@ -223,23 +318,43 @@ export default function EditarDB() {
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" gutterBottom>Editar Base de Datos</Typography>
-        <TextField
-          label="Buscar cliente"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        <Grid container spacing={2} alignItems="center" sx={{ mt: 0 }}>
+          <Grid item xs={12} sm={8}>
+            <TextField
+              label="Buscar por nombre, email, telefono o rubro"
+              variant="outlined"
+              fullWidth
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth>
+              <InputLabel id="rubro-filter-label">Rubro</InputLabel>
+              <Select
+                labelId="rubro-filter-label"
+                label="Rubro"
+                value={rubroFilter}
+                onChange={(e) => { setRubroFilter(e.target.value); setPage(0); }}
+              >
+                <MenuItem value=""><em>Todos los rubros</em></MenuItem>
+                {rubrosList.map((r) => (
+                  <MenuItem key={r} value={r}>{r}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 1 }}>
           {total} usuario{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
+          {rubroFilter ? ` en "${rubroFilter}"` : ""}
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 620, position: "relative" }}>
           {fetching && (
@@ -271,8 +386,15 @@ export default function EditarDB() {
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton onClick={() => handleEditClick(u)}><EditIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name || u.email })}><DeleteIcon color="error" /></IconButton>
+                    <Tooltip title="Ver detalle">
+                      <IconButton onClick={() => setViewUser(u)}><VisibilityIcon color="action" /></IconButton>
+                    </Tooltip>
+                    <Tooltip title="Editar">
+                      <IconButton onClick={() => handleEditClick(u)}><EditIcon color="primary" /></IconButton>
+                    </Tooltip>
+                    <Tooltip title="Eliminar">
+                      <IconButton onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name || u.email })}><DeleteIcon color="error" /></IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               )) : (
@@ -330,6 +452,48 @@ export default function EditarDB() {
         </DialogActions>
       </Dialog>
 
+      {/* View (read-only) dialog */}
+      {viewUser && (
+        <Dialog open={Boolean(viewUser)} onClose={() => setViewUser(null)} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            Detalle del contacto
+            {viewUser.rubro && <Chip label={viewUser.rubro} size="small" color="primary" variant="outlined" sx={{ ml: 1 }} />}
+          </DialogTitle>
+          <DialogContent dividers>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">Nombre</Typography>
+                <Typography variant="body1">{viewUser.name || "—"}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">Telefono</Typography>
+                <Typography variant="body1">{viewUser.phone || "—"}</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">Email</Typography>
+                <Typography variant="body1">{viewUser.email || "—"}</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">Descripcion</Typography>
+                <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+                  {viewUser.description ? viewUser.description : "Sin descripcion."}
+                </Typography>
+              </Grid>
+            </Grid>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>Archivos Subidos</Typography>
+            {renderFileList(viewUser.files)}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setViewUser(null)}>Cerrar</Button>
+            <Button variant="contained" startIcon={<EditIcon />} onClick={() => { handleEditClick(viewUser); setViewUser(null); }}>
+              Editar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {/* Edit dialog */}
       {selectedUser && (
         <Dialog open={openEditDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
           <DialogTitle>Editar Usuario: {selectedUser.name}</DialogTitle>
@@ -347,21 +511,7 @@ export default function EditarDB() {
             </Grid>
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Archivos Subidos</Typography>
-              {editedFiles && editedFiles.length > 0 ? (
-                editedFiles.map((file) => (
-                  <Box key={file.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", my: 1, p: 1, borderRadius: 1, bgcolor: "action.hover", "&:hover": { bgcolor: "action.selected" } }}>
-                    <Typography variant="body2" sx={{ flexGrow: 1 }}>{file.filename}</Typography>
-                    <Box>
-                      <IconButton size="small" onClick={() => handleDownloadFile(file)}><DownloadIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" onClick={() => setFileDeleteDialog({ open: true, fileId: file.id, fileName: file.filename })}>
-                        <DeleteIcon fontSize="small" color="error" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">No hay archivos subidos.</Typography>
-              )}
+              {renderFileList(editedFiles, { showDelete: true })}
               <Box sx={{ display: "flex", alignItems: "center", mt: 2 }}>
                 <Button variant="contained" component="label" startIcon={<CloudUploadIcon />} size="small">
                   Agregar Archivo
@@ -378,6 +528,50 @@ export default function EditarDB() {
           </DialogActions>
         </Dialog>
       )}
+
+      {/* File preview dialog */}
+      <Dialog open={previewDialog.open} onClose={() => setPreviewDialog(EMPTY_PREVIEW)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+          <Typography variant="h6" noWrap title={previewDialog.filename}>{previewDialog.filename || "Vista previa"}</Typography>
+        </DialogTitle>
+        <DialogContent dividers sx={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "grey.100" }}>
+          {previewDialog.loading ? (
+            <CircularProgress />
+          ) : previewDialog.kind === "pdf" ? (
+            <iframe
+              src={previewDialog.url}
+              title={previewDialog.filename}
+              style={{ width: "100%", height: "70vh", border: "none" }}
+            />
+          ) : previewDialog.kind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewDialog.url} alt={previewDialog.filename} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain" }} />
+          ) : (
+            <Box sx={{ textAlign: "center", p: 4 }}>
+              <DescriptionIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <Typography variant="body1" color="text.secondary">
+                Este tipo de archivo no se puede previsualizar aca.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Usa &quot;Descargar&quot; o &quot;Abrir en pestaña&quot; para verlo.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {previewDialog.url && (
+            <Button startIcon={<OpenInNewIcon />} onClick={() => window.open(previewDialog.url, "_blank")}>
+              Abrir en pestaña
+            </Button>
+          )}
+          {previewDialog.file && (
+            <Button startIcon={<DownloadIcon />} onClick={() => handleDownloadFile(previewDialog.file)}>
+              Descargar
+            </Button>
+          )}
+          <Button onClick={() => setPreviewDialog(EMPTY_PREVIEW)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>

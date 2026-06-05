@@ -12,6 +12,7 @@ from google.cloud import storage
 from PyPDF2 import PdfReader
 from app.utils.auth_utils import get_current_admin
 from app.services.embedding import generate_file_embedding, get_db_connection
+from app.services.admin_users_query import build_user_filters, guess_content_type, is_previewable
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -46,33 +47,29 @@ def list_users(
     page: int = 1,
     limit: int = 6,
     search: str = "",
+    rubro: str = "",
     current_admin: str = Depends(get_current_admin),
 ):
     """
     Lista usuarios paginados, ordenados alfabeticamente, con busqueda opcional.
+
+    `search` matchea nombre/email/telefono y rubro (insensible a acentos).
+    `rubro` filtra por el rubro elegido en el dropdown (insensible a acentos).
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
         offset = (page - 1) * limit
-        search_filter = ""
-        params = []
-
-        if search:
-            search_filter = (
-                'WHERE (LOWER(name) LIKE %s OR LOWER(email) LIKE %s OR LOWER(phone) LIKE %s)'
-            )
-            term = f"%{search.lower()}%"
-            params = [term, term, term]
+        where_sql, params = build_user_filters(search, rubro)
 
         # Total count
-        cur.execute(f'SELECT COUNT(*) FROM "User" {search_filter}', params)
+        cur.execute(f'SELECT COUNT(*) FROM "User" {where_sql}', params)
         total = cur.fetchone()[0]
 
         # Paginated users sorted alphabetically
         cur.execute(
-            f'SELECT id, email, name, phone, description, rubro FROM "User" {search_filter} '
+            f'SELECT id, email, name, phone, description, rubro FROM "User" {where_sql} '
             f'ORDER BY LOWER(COALESCE(name, \'\')) ASC LIMIT %s OFFSET %s',
             params + [limit, offset],
         )
@@ -101,6 +98,25 @@ def list_users(
         cur.close()
         conn.close()
         return {"users": users_list, "total": total, "page": page, "limit": limit}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rubros")
+def list_rubros(current_admin: str = Depends(get_current_admin)):
+    """Lista los rubros distintos (no vacios), ordenados, para el filtro del panel."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            'SELECT DISTINCT rubro FROM "User" '
+            "WHERE rubro IS NOT NULL AND TRIM(rubro) <> '' "
+            "ORDER BY rubro ASC"
+        )
+        rubros = [r[0] for r in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return {"rubros": rubros}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -281,16 +297,24 @@ def delete_user_file(user_id: str, file_id: str, current_admin: str = Depends(ge
 # === NUEVA RUTA AÑADIDA PARA GENERAR URL DE DESCARGA SEGURA ===
 # =================================================================
 @router.get("/files/{file_id}/signed-url")
-def get_signed_url_for_file(file_id: int, current_admin: str = Depends(get_current_admin)):
+def get_signed_url_for_file(
+    file_id: int,
+    disposition: str = "inline",
+    current_admin: str = Depends(get_current_admin),
+):
     """
-    Genera una URL firmada (temporal y segura) para descargar un archivo.
+    Genera una URL firmada (temporal y segura) para ver o descargar un archivo.
+
+    `disposition=inline` (default) hace que el navegador muestre el PDF/imagen embebido
+    (preview sin descargar); `disposition=attachment` fuerza la descarga.
+    Devuelve tambien el nombre, content-type y si es previsualizable.
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 1. Buscar el 'fileKey' del archivo en la base de datos
-        cur.execute('SELECT "fileKey" FROM "EmployeeDocument" WHERE id = %s', (file_id,))
+        # 1. Buscar el 'fileKey' y el nombre original del archivo en la base de datos
+        cur.execute('SELECT "fileKey", "originalName" FROM "EmployeeDocument" WHERE id = %s', (file_id,))
         result = cur.fetchone()
         cur.close()
         conn.close()
@@ -298,22 +322,32 @@ def get_signed_url_for_file(file_id: int, current_admin: str = Depends(get_curre
         if not result:
             raise HTTPException(status_code=404, detail="Archivo no encontrado en la base de datos.")
 
-        file_key = result[0]
-        
+        file_key, original_name = result[0], result[1]
+        content_type = guess_content_type(original_name)
+        disp = "attachment" if disposition == "attachment" else "inline"
+        safe_name = (original_name or "archivo").replace('"', "")
+
         # 2. Generar la URL firmada desde Google Cloud Storage
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(file_key)
 
         # La URL expirará en 15 minutos
         expiration_time = datetime.timedelta(minutes=15)
-        
+
         signed_url = blob.generate_signed_url(
             version="v4",
             expiration=expiration_time,
             method="GET",
+            response_disposition=f'{disp}; filename="{safe_name}"',
+            response_type=content_type,
         )
 
-        return {"url": signed_url}
+        return {
+            "url": signed_url,
+            "filename": original_name,
+            "content_type": content_type,
+            "previewable": is_previewable(content_type),
+        }
 
     except HTTPException as http_exc:
         raise http_exc

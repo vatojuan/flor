@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -31,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.1",
     "next-transpile-modules": "^10.0.1",
-    "style-loader": "^4.0.0"
+    "style-loader": "^4.0.0",
+    "vitest": "^2.1.9"
   }
 }
