@@ -40,6 +40,7 @@ from app.routers import (
     email_db_admin,
     job_admin,
     training,
+    telegram,
 )
 from backend.auth import router as admin_auth_router
 
@@ -81,6 +82,7 @@ async def log_request(request: Request, call_next):
 # --- Inclusión de Routers (Lógica Original Restaurada) ---
 # Cada router es responsable de su propio prefijo.
 app.include_router(agent.router)
+app.include_router(telegram.router)
 app.include_router(auth.router)
 app.include_router(inbox.router)
 app.include_router(mailing.router)
