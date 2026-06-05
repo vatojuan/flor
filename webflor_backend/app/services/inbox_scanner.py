@@ -14,8 +14,9 @@ import re
 from email.header import decode_header
 from typing import Optional
 
-from app.database import get_db_connection
-from app.email_utils import send_credentials_email
+# Nota: app.database / app.email_utils importan dotenv/psycopg2 a nivel modulo, que
+# no estan en el entorno de CI. Se importan lazy dentro de _process_cv_attachment para
+# que importar este modulo (y testear sus funciones puras) no requiera esas deps.
 
 logger = logging.getLogger(__name__)
 
@@ -407,6 +408,9 @@ def _process_cv_attachment(
     send_credentials=None,
 ) -> dict:
     """Procesa un PDF de CV adjunto: extrae datos, crea/repara la cuenta y adjunta el CV."""
+    from app.database import get_db_connection
+    from app.email_utils import send_credentials_email
+
     upload_pdf = upload_pdf or _default_upload_pdf
     make_embedding = make_embedding or _default_make_embedding
     gen_password = gen_password or _default_gen_password
