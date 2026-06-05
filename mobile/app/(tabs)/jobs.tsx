@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, ScrollView } from 'react-native';
 import { Searchbar, Chip, Button, useTheme, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,6 +20,8 @@ export default function JobsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [rubroFilter, setRubroFilter] = useState<string | null>(null);
+  const [contractFilter, setContractFilter] = useState<string | null>(null);
+  const [modalityFilter, setModalityFilter] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
   const [dialog, setDialog] = useState<{ visible: boolean; type: string; id?: number }>({ visible: false, type: '' });
 
@@ -50,14 +52,15 @@ export default function JobsScreen() {
     let result = [...jobs];
     if (search) result = result.filter((j) => j.title?.toLowerCase().includes(search.toLowerCase()));
     if (rubroFilter) result = result.filter((j) => j.rubro === rubroFilter);
-    // Sort: featured first, then newest
+    if (contractFilter) result = result.filter((j) => j.contract_type === contractFilter);
+    if (modalityFilter) result = result.filter((j) => j.modality === modalityFilter);
     result.sort((a, b) => {
       if (a.is_paid && !b.is_paid) return -1;
       if (!a.is_paid && b.is_paid) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
     return result;
-  }, [jobs, search, rubroFilter]);
+  }, [jobs, search, rubroFilter, contractFilter, modalityFilter]);
 
   const appliedJobIds = useMemo(() => new Set(applications.map((a: any) => a.job?.id)), [applications]);
 
@@ -132,25 +135,29 @@ export default function JobsScreen() {
         inputStyle={{ fontSize: 14 }}
       />
 
-      {rubros.length > 0 && (
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={[null, ...rubros]}
-          keyExtractor={(item) => item || 'all'}
-          contentContainerStyle={styles.chipList}
-          renderItem={({ item }) => (
-            <Chip
-              selected={item === rubroFilter}
-              onPress={() => setRubroFilter(item === rubroFilter ? null : item)}
-              style={styles.chip}
-              compact
-            >
-              {item || 'Todos'}
-            </Chip>
-          )}
-        />
-      )}
+      {/* Filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipList}>
+        {/* Rubro */}
+        {rubros.map((r) => (
+          <Chip key={r} selected={r === rubroFilter} onPress={() => setRubroFilter(r === rubroFilter ? null : r)} compact style={styles.chip}>
+            {r}
+          </Chip>
+        ))}
+        {/* Contract type */}
+        {['efectivo', 'contrato', 'temporal', 'freelance'].map((c) => (
+          <Chip key={c} selected={c === contractFilter} onPress={() => setContractFilter(c === contractFilter ? null : c)} compact style={styles.chip}
+            icon="file-document-outline">
+            {c.charAt(0).toUpperCase() + c.slice(1)}
+          </Chip>
+        ))}
+        {/* Modality */}
+        {['presencial', 'remoto', 'hibrido'].map((m) => (
+          <Chip key={m} selected={m === modalityFilter} onPress={() => setModalityFilter(m === modalityFilter ? null : m)} compact style={styles.chip}
+            icon="office-building">
+            {m.charAt(0).toUpperCase() + m.slice(1)}
+          </Chip>
+        ))}
+      </ScrollView>
 
       <FlatList
         data={filteredJobs}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { Text, Button, Chip, useTheme, ActivityIndicator, Snackbar, Divider } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,12 +9,25 @@ import { colors } from '../../theme/colors';
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  return new Date(dateStr).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
+
+function formatSalary(min?: number, max?: number, visible?: boolean) {
+  if (visible === false) return 'A convenir';
+  if (!min && !max) return null;
+  const fmt = (n: number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  if (min && max) return `$${fmt(min)} - $${fmt(max)}/mes`;
+  if (min) return `Desde $${fmt(min)}/mes`;
+  return `Hasta $${fmt(max!)}/mes`;
+}
+
+const contractLabels: Record<string, string> = {
+  ocasional: 'Ocasional', temporal: 'Temporal', contrato: 'Contrato',
+  efectivo: 'Efectivo', freelance: 'Freelance',
+};
+const modalityLabels: Record<string, string> = {
+  presencial: 'Presencial', remoto: 'Remoto', hibrido: 'Híbrido',
+};
 
 export default function JobDetailScreen() {
   const theme = useTheme();
@@ -53,16 +66,18 @@ export default function JobDetailScreen() {
   }
 
   if (!job) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-        <Text>Oferta no encontrada</Text>
-      </View>
-    );
+    return <View style={[styles.centered, { backgroundColor: theme.colors.background }]}><Text>Oferta no encontrada</Text></View>;
   }
+
+  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_visible);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {job.banner_url && (
+          <Image source={{ uri: job.banner_url }} style={styles.banner} />
+        )}
+
         {(job.is_paid || job.isPaid) && (
           <Chip icon="star" style={styles.featuredChip} textStyle={{ color: '#000', fontWeight: '600' }}>
             Oferta Destacada
@@ -73,49 +88,76 @@ export default function JobDetailScreen() {
           {job.title}
         </Text>
 
-        {job.rubro && (
-          <Chip compact style={[styles.rubroChip, { backgroundColor: colors.secondary }]} textStyle={{ color: colors.white }}>
-            {job.rubro}
-          </Chip>
+        {/* Chips row */}
+        <View style={styles.chipRow}>
+          {job.rubro && (
+            <Chip compact style={{ backgroundColor: colors.secondary }} textStyle={{ color: colors.white }}>
+              {job.rubro}
+            </Chip>
+          )}
+          {job.contract_type && (
+            <Chip compact icon="file-document-outline">
+              {contractLabels[job.contract_type] || job.contract_type}
+            </Chip>
+          )}
+          {job.modality && (
+            <Chip compact icon="office-building">
+              {modalityLabels[job.modality] || job.modality}
+            </Chip>
+          )}
+        </View>
+
+        {/* Meta section */}
+        <View style={styles.metaSection}>
+          {job.location && (
+            <MetaRow icon="map-marker" text={job.location} color={theme.colors.onSurfaceVariant} />
+          )}
+          {salary && (
+            <MetaRow icon="currency-usd" text={salary} color={colors.success} />
+          )}
+          <MetaRow icon="calendar" text={`Publicado: ${formatDate(job.createdAt)}`} color={theme.colors.onSurfaceVariant} />
+          {job.expirationDate && (
+            <MetaRow icon="clock-alert-outline" text={`Expira: ${formatDate(job.expirationDate)}`} color={colors.error} />
+          )}
+          <MetaRow icon="account-group" text={`${job.candidatesCount ?? 0} candidatos postulados`} color={theme.colors.onSurfaceVariant} />
+        </View>
+
+        {/* Benefits */}
+        {job.benefits && job.benefits.length > 0 && (
+          <>
+            <Divider style={{ marginVertical: 12 }} />
+            <Text variant="titleMedium" style={styles.sectionTitle}>Beneficios</Text>
+            <View style={styles.chipRow}>
+              {job.benefits.map((b: string, i: number) => (
+                <Chip key={i} icon="check-circle-outline" compact style={styles.benefitChip} textStyle={{ color: colors.success }}>
+                  {b}
+                </Chip>
+              ))}
+            </View>
+          </>
         )}
 
-        <View style={styles.metaSection}>
-          <View style={styles.metaRow}>
-            <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}>
-              Publicado: {formatDate(job.createdAt)}
-            </Text>
+        {/* Tags */}
+        {job.tags && job.tags.length > 0 && (
+          <View style={[styles.chipRow, { marginTop: 8 }]}>
+            {job.tags.map((tag: string, i: number) => (
+              <Chip key={i} compact style={styles.tagChip} textStyle={{ fontSize: 11 }}>
+                #{tag}
+              </Chip>
+            ))}
           </View>
-          {job.expirationDate && (
-            <View style={styles.metaRow}>
-              <MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.error} />
-              <Text variant="bodyMedium" style={{ color: colors.error, marginLeft: 8 }}>
-                Expira: {formatDate(job.expirationDate)}
-              </Text>
-            </View>
-          )}
-          <View style={styles.metaRow}>
-            <MaterialCommunityIcons name="account-group" size={18} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}>
-              {job.candidatesCount ?? 0} candidatos postulados
-            </Text>
-          </View>
-        </View>
+        )}
 
         <Divider style={{ marginVertical: 16 }} />
 
-        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-          Descripcion
-        </Text>
+        <Text variant="titleMedium" style={styles.sectionTitle}>Descripcion</Text>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, lineHeight: 24 }}>
           {job.description}
         </Text>
 
         {job.requirements && (
           <>
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onBackground, marginTop: 20 }]}>
-              Requisitos
-            </Text>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 20 }]}>Requisitos</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, lineHeight: 24 }}>
               {job.requirements}
             </Text>
@@ -125,16 +167,8 @@ export default function JobDetailScreen() {
 
       {isEmpleado && (
         <View style={[styles.bottomBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline }]}>
-          <Button
-            mode="contained"
-            onPress={handleApply}
-            loading={applying}
-            disabled={applying}
-            style={styles.applyButton}
-            contentStyle={{ height: 50 }}
-            labelStyle={{ fontSize: 16, fontWeight: '600' }}
-            icon="send"
-          >
+          <Button mode="contained" onPress={handleApply} loading={applying} disabled={applying}
+            style={styles.applyButton} contentStyle={{ height: 50 }} labelStyle={{ fontSize: 16, fontWeight: '600' }} icon="send">
             Postularme
           </Button>
         </View>
@@ -147,23 +181,28 @@ export default function JobDetailScreen() {
   );
 }
 
+function MetaRow({ icon, text, color }: { icon: string; text: string; color: string }) {
+  return (
+    <View style={styles.metaRow}>
+      <MaterialCommunityIcons name={icon as any} size={18} color={color} />
+      <Text variant="bodyMedium" style={{ color, marginLeft: 8 }}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 20, paddingBottom: 100 },
+  banner: { width: '100%', height: 180, borderRadius: 12, marginBottom: 16 },
   title: { fontWeight: '700', marginBottom: 8 },
   featuredChip: { backgroundColor: colors.featured, alignSelf: 'flex-start', marginBottom: 12 },
-  rubroChip: { alignSelf: 'flex-start', marginBottom: 12 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   metaSection: { gap: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
-  sectionTitle: { fontWeight: '600', marginBottom: 8 },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    borderTopWidth: 0.5,
-  },
+  sectionTitle: { fontWeight: '600', marginBottom: 8, color: undefined },
+  benefitChip: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.success },
+  tagChip: { backgroundColor: 'rgba(33, 150, 243, 0.1)' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, borderTopWidth: 0.5 },
   applyButton: { borderRadius: 12 },
 });

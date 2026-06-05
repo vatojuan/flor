@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyApplications, getEmployerJobs, cancelApplication } from '../../services/jobs';
+import { getReputationSummary } from '../../services/reputation';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import EmptyState from '../../components/EmptyState';
 import { colors } from '../../theme/colors';
@@ -15,6 +16,7 @@ export default function DashboardScreen() {
   const isEmpleador = user?.role === 'empleador' || user?.role === 'admin';
 
   const [data, setData] = useState<any>(null);
+  const [reputation, setReputation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancelDialog, setCancelDialog] = useState<{ visible: boolean; id?: number }>({ visible: false });
@@ -25,8 +27,12 @@ export default function DashboardScreen() {
         const res = await getEmployerJobs(user.id);
         setData(res);
       } else {
-        const res = await getMyApplications();
-        setData(res);
+        const [appsRes, repRes] = await Promise.all([
+          getMyApplications(),
+          user ? getReputationSummary(user.id).catch(() => null) : null,
+        ]);
+        setData(appsRes);
+        setReputation(repRes);
       }
     } catch {
     } finally {
@@ -91,7 +97,7 @@ export default function DashboardScreen() {
             style={{ backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start' }}
             textStyle={{ color: colors.white, fontSize: 11 }}
           >
-            {isEmpleador ? 'Empresa' : 'Candidato'}
+            {isEmpleador ? 'Empleador' : 'Candidato'}
           </Chip>
         </View>
       </View>
@@ -106,20 +112,46 @@ export default function DashboardScreen() {
             <MetricCard label="Destacadas" value={featuredCount} icon="star" theme={theme} />
           </View>
 
-          {/* Quick actions */}
+          {/* Opciones de Empleador */}
           <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-            Acciones Rapidas
+            Opciones de Empleador
           </Text>
           <View style={styles.actionsGrid}>
-            <ActionCard icon="plus-circle" label="Publicar Oferta" onPress={() => router.push('/job/create')} theme={theme} />
-            <ActionCard icon="format-list-bulleted" label="Mis Ofertas" onPress={() => router.push('/(tabs)/jobs')} theme={theme} />
-            <ActionCard icon="account-multiple" label="Postulaciones" onPress={() => router.push('/applications')} theme={theme} />
-            <ActionCard icon="account-edit" label="Mi Perfil" onPress={() => router.push('/(tabs)/profile')} theme={theme} />
+            <ActionCard icon="comment-text-multiple" label="Mis Postulaciones" onPress={() => router.push('/applications')} theme={theme} />
+            <ActionCard icon="heart" label="Mis Favoritos" onPress={() => router.push('/favorites')} theme={theme} />
+            <ActionCard icon="account-search" label="Buscar Personal" onPress={() => {}} theme={theme} />
+            <ActionCard icon="account-group" label="Tercerizar Personal" onPress={() => {}} theme={theme} />
           </View>
         </>
       ) : (
         /* ========= EMPLOYEE DASHBOARD ========= */
         <>
+          {/* Reputation stats */}
+          {reputation && reputation.review_count > 0 && (
+            <View style={[styles.repCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View style={styles.repRow}>
+                <View style={styles.repItem}>
+                  <MaterialCommunityIcons name="star" size={22} color={colors.featured} />
+                  <Text variant="titleMedium" style={{ fontWeight: '700' }}>{reputation.avg_rating?.toFixed(1)}</Text>
+                </View>
+                <View style={styles.repItem}>
+                  <MaterialCommunityIcons name="comment-text-outline" size={18} color="#26A69A" />
+                  <Text variant="bodyMedium">{reputation.review_count} reseñas</Text>
+                </View>
+                <View style={styles.repItem}>
+                  <MaterialCommunityIcons name="briefcase-check" size={18} color={colors.primary} />
+                  <Text variant="bodyMedium">{reputation.jobs_completed} trabajos</Text>
+                </View>
+              </View>
+              {reputation.badge_verified && (
+                <View style={[styles.badgeRow, { backgroundColor: 'rgba(33,150,243,0.1)' }]}>
+                  <MaterialCommunityIcons name="check-decagram" size={18} color={colors.info} />
+                  <Text variant="bodySmall" style={{ color: colors.info, fontWeight: '600' }}>Candidato Verificado</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Quick actions */}
           <View style={styles.quickButtons}>
             <Button
@@ -243,6 +275,10 @@ const styles = StyleSheet.create({
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionCard: { width: '47%', borderRadius: 12 },
   actionContent: { alignItems: 'center', gap: 8, paddingVertical: 12 },
+  repCard: { padding: 16, borderRadius: 12, marginBottom: 16, gap: 8 },
+  repRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  repItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, borderRadius: 8, alignSelf: 'center' },
   quickButtons: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   quickButton: { flex: 1, borderRadius: 12 },
   appCard: { marginBottom: 8, borderRadius: 12 },

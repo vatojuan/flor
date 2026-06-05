@@ -1,7 +1,9 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../theme/colors';
 
@@ -9,6 +11,7 @@ export default function TabsLayout() {
   const theme = useTheme();
   const { user } = useAuth();
   const isEmpleador = user?.role === 'empleador' || user?.role === 'admin';
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -22,8 +25,8 @@ export default function TabsLayout() {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.outline,
           borderTopWidth: 0.5,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 4,
         },
         tabBarActiveTintColor: colors.primary,
@@ -43,10 +46,21 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
-          title: isEmpleador ? 'Ofertas' : 'Buscar',
+          title: 'Ofertas',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="briefcase-search" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="publish"
+        options={{
+          title: 'Publicar',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="plus-circle" size={size + 4} color={color} />
+          ),
+          // Only show for employers
+          href: isEmpleador ? '/(tabs)/publish' : null,
         }}
       />
       <Tabs.Screen
@@ -58,13 +72,11 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Hide settings tab - merged into profile */}
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Ajustes',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
