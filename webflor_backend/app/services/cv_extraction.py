@@ -107,8 +107,14 @@ def _clean_string(value) -> str | None:
 
 
 def _clean_email(value) -> str | None:
-    """Validate email format."""
+    """Validate email format and trim any text glued to the TLD.
+
+    Aunque GPT casi siempre devuelve el email limpio, lo pasamos por el extractor
+    canónico para no persistir 'user@gmail.comExperiencia' si el modelo se cuela.
+    """
     cleaned = _clean_string(value)
     if not cleaned or "@" not in cleaned or "." not in cleaned:
         return None
-    return cleaned.lower()
+    from app.utils.email_extraction import extract_email
+    canon = extract_email(cleaned)
+    return (canon or cleaned).lower()

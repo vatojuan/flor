@@ -15,6 +15,7 @@ from openai import OpenAI
 
 # ──────────────────────────── Config ────────────────────────────
 from app.core.auth import SECRET_KEY, ALGORITHM
+from app.utils.email_extraction import extract_email as _canon_extract_email
 
 load_dotenv()
 
@@ -65,8 +66,10 @@ def txt_to_text(b: bytes) -> str:
     return b.decode(errors="ignore")
 
 def extract_email(text: str) -> Optional[str]:
-    match = EMAIL_RE.search(text)
-    return match.group(0).lower() if match else None
+    # Fuente única de verdad: recorta basura pegada al TLD validando contra IANA.
+    # (antes usaba EMAIL_RE pelado → metía 'user@gmail.comExperiencia' en la lista).
+    email = _canon_extract_email(text)
+    return email.lower() if email else None
 
 def extract_phone(text: str) -> Optional[str]:
     match = PHONE_RE.search(text)

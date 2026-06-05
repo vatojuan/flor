@@ -11,6 +11,7 @@ from openai import OpenAI
 from app.email_utils import send_confirmation_email
 from app.routers.match import run_matching_for_user  # Importar la función de recálculo de matchings
 from app.database import get_db_connection
+from app.utils.email_extraction import extract_email  # fuente única (recorta TLD vía IANA)
 
 load_dotenv()
 
@@ -33,45 +34,6 @@ def extract_text_from_pdf(pdf_bytes):
         return text.strip()
     except Exception as e:
         raise Exception(f"Error extrayendo texto del PDF: {e}")
-
-COMMON_TLDS = {"com", "org", "net", "edu", "gov", "io", "co", "us", "ar", "comar"}
-
-def extract_email(text):
-    """
-    Extrae el primer email del texto y recorta cualquier texto extra pegado al TLD,
-    usando una lista de TLDs comunes para determinar dónde cortar.
-    """
-    cleaned_text = re.sub(r'[\r\n\t]+', ' ', text)
-    cleaned_text = re.sub(r'\s{2,}', ' ', cleaned_text)
-    pattern = r'\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}[A-Za-z]*'
-    match = re.search(pattern, cleaned_text)
-    if not match:
-        return None
-    candidate = match.group(0)
-    last_dot = candidate.rfind('.')
-    if last_dot == -1:
-        return candidate
-
-    tld_contig = ""
-    for ch in candidate[last_dot+1:]:
-        if ch.isalpha():
-            tld_contig += ch
-        else:
-            break
-
-    max_length = min(9, len(tld_contig)+1)
-    valid_tld = None
-    for i in range(max_length-1, 1, -1):
-        possible_tld = tld_contig[:i].lower()
-        if possible_tld in COMMON_TLDS:
-            valid_tld = possible_tld
-            break
-
-    if valid_tld:
-        final_email = candidate[:last_dot+1+len(valid_tld)]
-        return final_email
-    else:
-        return candidate
 
 def sanitize_filename(filename: str) -> str:
     filename = filename.replace(" ", "_")
