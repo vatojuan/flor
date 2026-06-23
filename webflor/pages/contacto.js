@@ -58,8 +58,8 @@ export default function Contacto() {
           flexGrow: 1,
           display: "flex",
           justifyContent: "center",
-          alignItems: "center",
-          py: 8,
+          alignItems: { xs: "flex-start", md: "center" },
+          py: { xs: 4, md: 8 },
         }}
       >
         <Container maxWidth="sm">
@@ -70,14 +70,14 @@ export default function Contacto() {
           <Typography
             variant="body1"
             align="center"
-            sx={{ mb: 4, color: "rgba(255,255,255,0.85)" }}
+            sx={{ mb: 4, color: "rgba(255,255,255,0.85)", px: { xs: 1, md: 0 } }}
           >
             Completa el formulario y nos pondremos en contacto contigo lo antes posible.
           </Typography>
 
           {/* Formulario */}
           <Paper elevation={4} sx={{
-            p: 4,
+            p: { xs: 2.5, sm: 4 },
             backgroundColor: "rgba(16,59,64,0.85)",
             color: "#FFF",
             borderRadius: 3,
@@ -127,7 +127,7 @@ export default function Contacto() {
                 fullWidth
                 required
               />
-              <Button type="submit" variant="contained" size="large">
+              <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.25 }}>
                 Enviar Mensaje
               </Button>
             </Box>
@@ -135,7 +135,7 @@ export default function Contacto() {
 
           {/* Volver al inicio */}
           <Box textAlign="center" sx={{ mt: 3 }}>
-            <Button component={Link} href="/" variant="text" sx={{ color: "#FFF" }}>
+            <Button component={Link} href="/" variant="text" sx={{ color: "#FFF", minHeight: 44, py: 1 }}>
               ← Volver al Inicio
             </Button>
           </Box>
@@ -148,6 +148,7 @@ export default function Contacto() {
         autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ bottom: { xs: 88, md: 24 } }}
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}

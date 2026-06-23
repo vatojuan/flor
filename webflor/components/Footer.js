@@ -52,6 +52,8 @@ export default function Footer() {
                 fontSize: "0.8rem",
                 transition: "color 0.2s ease",
                 "&:hover": { color: "#D96236" },
+                display: "inline-block",
+                py: { xs: 0.75, sm: 0 },
               }}
             >
               {link.label}
@@ -64,11 +66,13 @@ export default function Footer() {
           <Tooltip title="Instagram" arrow>
             <IconButton
               size="small"
+              aria-label="Instagram"
               onClick={() => window.open("https://www.instagram.com/faprrhh", "_blank")}
               sx={{
                 color: "rgba(255,255,255,0.5)",
                 transition: "color 0.2s ease",
                 "&:hover": { color: "#D96236", backgroundColor: "transparent" },
+                p: { xs: 1, sm: 0.5 },
               }}
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -79,11 +83,13 @@ export default function Footer() {
           <Tooltip title="LinkedIn" arrow>
             <IconButton
               size="small"
+              aria-label="LinkedIn"
               onClick={() => window.open("https://www.linkedin.com/in/florenciaalvarezfap", "_blank")}
               sx={{
                 color: "rgba(255,255,255,0.5)",
                 transition: "color 0.2s ease",
                 "&:hover": { color: "#D96236", backgroundColor: "transparent" },
+                p: { xs: 1, sm: 0.5 },
               }}
             >
               <LinkedInIcon sx={{ fontSize: 18 }} />

@@ -51,8 +51,10 @@ export default function Branding() {
           maxWidth="lg"
           sx={{
             display: "flex",
+            flexDirection: { xs: "column", md: "row" },
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: { xs: "flex-start", md: "center" },
+            gap: { xs: 2, md: 0 },
           }}
         >
           <Box>
@@ -62,18 +64,22 @@ export default function Branding() {
               sx={{ fontWeight: 700, mt: 1, lineHeight: 1.2 }}
             >
               Construí tu
-              <br />
+              <Box component="br" sx={{ display: { xs: "none", md: "block" } }} />
               marca empleadora
             </Typography>
           </Box>
-          <IconButton onClick={handleNext} sx={{ color: "#FFF" }}>
+          <IconButton
+            onClick={handleNext}
+            aria-label="Siguiente solución"
+            sx={{ color: "#FFF", display: { xs: "none", md: "inline-flex" } }}
+          >
             <ArrowForwardIosIcon fontSize="large" />
           </IconButton>
         </Container>
       </Box>
 
       {/* Contenido */}
-      <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
         {/* Intro + CTA */}
         <Paper
           elevation={0}
@@ -169,7 +175,8 @@ export default function Branding() {
           sx={{
             textAlign: "center",
             backgroundColor: "#155158",
-            py: 6,
+            py: { xs: 4, md: 6 },
+            mb: { xs: 6, md: 0 },
             borderRadius: 2,
           }}
         >
@@ -181,6 +188,7 @@ export default function Branding() {
             size="large"
             color="primary"
             onClick={handleContact}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
           >
             Hablemos
           </Button>

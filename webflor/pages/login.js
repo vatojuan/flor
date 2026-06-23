@@ -60,23 +60,25 @@ export default function Login() {
           },
         }}
       />
-      <Box 
-        sx={{ 
-          minHeight: "100vh", 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "center", 
-          bgcolor: "background.default" 
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: { xs: "flex-start", md: "center" },
+          justifyContent: "center",
+          bgcolor: "background.default",
+          px: 2,
+          py: { xs: 4, md: 0 }
         }}
       >
         <Container 
           maxWidth="sm" 
-          sx={{ 
-            textAlign: "center", 
-            p: 4, 
-            boxShadow: 3, 
-            borderRadius: 2, 
-            bgcolor: "background.paper" 
+          sx={{
+            textAlign: "center",
+            p: { xs: 2.5, sm: 4 },
+            boxShadow: 3,
+            borderRadius: 2,
+            bgcolor: "background.paper"
           }}
         >
           <Typography variant="h4" gutterBottom>
@@ -134,14 +136,14 @@ export default function Login() {
 
           <Typography variant="body2" sx={{ mt: 2 }}>
             ¿No tienes cuenta?{" "}
-            <Link href="/register" style={{ color: "#1976d2", textDecoration: "none" }}>
+            <Link href="/register" style={{ color: "#1976d2", textDecoration: "none", display: "inline-block", padding: "6px 4px" }}>
               Regístrate aquí
             </Link>
           </Typography>
           
           <Typography variant="body2" sx={{ mt: 1 }}>
             ¿Olvidaste tu contraseña?{" "}
-            <Link href="/forgot-password" style={{ color: "#1976d2", textDecoration: "none" }}>
+            <Link href="/forgot-password" style={{ color: "#1976d2", textDecoration: "none", display: "inline-block", padding: "6px 4px" }}>
               Recuperarla
             </Link>
           </Typography>

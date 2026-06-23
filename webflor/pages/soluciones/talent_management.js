@@ -77,8 +77,10 @@ export default function TalentManagement() {
           maxWidth="lg"
           sx={{
             display: "flex",
+            flexDirection: { xs: "column", md: "row" },
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: { xs: "flex-start", md: "center" },
+            gap: { xs: 2, md: 0 },
           }}
         >
           <Box>
@@ -88,17 +90,24 @@ export default function TalentManagement() {
               sx={{ fontWeight: 700, mt: 1, lineHeight: 1.2 }}
             >
               Administración de
-              <br />
+              <Box component="br" sx={{ display: { xs: "none", md: "block" } }} />
               Personal Estratégica
             </Typography>
           </Box>
-          <IconButton onClick={handleNext} sx={{ color: "#FFF" }}>
+          <IconButton
+            onClick={handleNext}
+            aria-label="Siguiente solución"
+            sx={{
+              color: "#FFF",
+              display: { xs: "none", md: "inline-flex" },
+            }}
+          >
             <ArrowForwardIosIcon fontSize="large" />
           </IconButton>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
         {/* Intro + CTA */}
         <Paper
           elevation={0}
@@ -179,14 +188,21 @@ export default function TalentManagement() {
           sx={{
             textAlign: "center",
             backgroundColor: "#155158",
-            py: 6,
+            py: { xs: 4, md: 6 },
+            px: { xs: 2, md: 4 },
             borderRadius: 2,
+            pb: { xs: 6, md: 0 },
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, color: "#FFF" }}>
             ¿Necesitás optimizar tu administración de personal?
           </Typography>
-          <Button variant="contained" size="large" onClick={handleContact}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleContact}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
             Hablemos
           </Button>
         </Box>

@@ -115,22 +115,21 @@ export default function Outsourcing() {
     <MainLayout>
       {/* Hero */}
       <Box sx={{ background: "linear-gradient(135deg,#0B2A2D 0%, #103B40 50%, #155158 100%)", color: "#FFF", py: { xs: 6, md: 8 } }}>
-        <Container maxWidth="lg" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Container maxWidth="lg" sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 } }}>
           <Box>
             <Typography variant="h5">Outsourcing</Typography>
             <Typography variant="h2" sx={{ fontWeight: 700, mt: 1, lineHeight: 1.2 }}>
               Expertos externos
-              <br />
-              para tu eficiencia
+              <Box component="br" sx={{ display: { xs: "none", md: "block" } }} /> para tu eficiencia
             </Typography>
           </Box>
-          <IconButton onClick={handleNext} sx={{ color: "#FFF" }}>
+          <IconButton onClick={handleNext} aria-label="Siguiente solución" sx={{ color: "#FFF", display: { xs: "none", md: "inline-flex" } }}>
             <ArrowForwardIosIcon fontSize="large" />
           </IconButton>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 }, pb: { xs: 10, md: 8 } }}>
         {/* Intro */}
         <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, mb: 6, backgroundColor: "rgba(16,59,64,0.85)", color: "#FFF" }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -147,7 +146,7 @@ export default function Outsourcing() {
         </Paper>
 
         {/* Como funciona */}
-        <Box sx={{ mb: 8 }}>
+        <Box sx={{ mb: { xs: 6, md: 8 } }}>
           <Typography variant="h4" gutterBottom>Como funciona</Typography>
           <Grid container spacing={3}>
             {comoFunciona.map((item) => (
@@ -163,7 +162,7 @@ export default function Outsourcing() {
         </Box>
 
         {/* Servicios */}
-        <Box sx={{ mb: 8 }}>
+        <Box sx={{ mb: { xs: 6, md: 8 } }}>
           <Typography variant="h4" gutterBottom>Nuestros servicios</Typography>
           <Grid container spacing={4}>
             {servicios.map((s, i) => (
@@ -189,7 +188,7 @@ export default function Outsourcing() {
         </Box>
 
         {/* Beneficios */}
-        <Box sx={{ mb: 8 }}>
+        <Box sx={{ mb: { xs: 6, md: 8 } }}>
           <Typography variant="h4" gutterBottom>Beneficios</Typography>
           <Grid container spacing={2}>
             {beneficios.map((b, i) => (
@@ -205,8 +204,9 @@ export default function Outsourcing() {
 
         {/* Formulario de solicitud */}
         <Paper id="solicitar" sx={{
-          p: 4, borderRadius: 3, border: "2px solid #D96236",
+          p: { xs: 2.5, md: 4 }, borderRadius: 3, border: "2px solid #D96236",
           backgroundColor: "rgba(16,59,64,0.85)", color: "#FFF",
+          scrollMarginTop: { xs: "76px", md: "86px" },
         }}>
           <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
             Solicitar Outsourcing
@@ -277,7 +277,7 @@ export default function Outsourcing() {
 
             <Button type="submit" variant="contained" size="large" disabled={submitting}
               startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-              sx={{ py: 1.5, fontSize: 16 }}>
+              sx={{ py: 1.5, fontSize: { xs: 14, sm: 16 }, lineHeight: 1.3 }}>
               {submitting ? "Enviando..." : "Solicitar outsourcing (sin costo)"}
             </Button>
 

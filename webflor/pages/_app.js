@@ -60,32 +60,55 @@ export default function App({ Component, pageProps: { session, ...pageProps } })
           fontFamily: "'Bodoni Moda', serif",
           h1: {
             fontWeight: 700,
-            fontSize: "3rem",
+            fontSize: "1.9rem",
             letterSpacing: "-0.02em",
             lineHeight: 1.2,
+            "@media (min-width:600px)": { fontSize: "2.5rem" },
+            "@media (min-width:900px)": { fontSize: "3rem" },
           },
           h2: {
             fontWeight: 600,
-            fontSize: "2.4rem",
+            fontSize: "1.6rem",
             letterSpacing: "-0.01em",
-            lineHeight: 1.3,
+            lineHeight: 1.25,
+            "@media (min-width:600px)": { fontSize: "2rem" },
+            "@media (min-width:900px)": { fontSize: "2.4rem" },
           },
           h3: {
             fontWeight: 600,
-            fontSize: "1.8rem",
+            fontSize: "1.35rem",
+            lineHeight: 1.3,
+            "@media (min-width:600px)": { fontSize: "1.55rem" },
+            "@media (min-width:900px)": { fontSize: "1.8rem" },
+          },
+          h4: {
+            fontWeight: 600,
+            fontSize: "1.25rem",
+            lineHeight: 1.3,
+            "@media (min-width:600px)": { fontSize: "1.5rem" },
+            "@media (min-width:900px)": { fontSize: "1.85rem" },
+          },
+          h5: {
+            fontWeight: 600,
+            fontSize: "1.1rem",
             lineHeight: 1.35,
+            "@media (min-width:600px)": { fontSize: "1.3rem" },
+            "@media (min-width:900px)": { fontSize: "1.5rem" },
           },
           h6: {
             fontWeight: 500,
-            fontSize: "1.15rem",
+            fontSize: "1.05rem",
+            "@media (min-width:900px)": { fontSize: "1.15rem" },
           },
           body1: {
-            fontSize: "1.125rem",
-            lineHeight: 1.75,
-          },
-          body2: {
             fontSize: "1rem",
             lineHeight: 1.7,
+            "@media (min-width:900px)": { fontSize: "1.125rem", lineHeight: 1.75 },
+          },
+          body2: {
+            fontSize: "0.95rem",
+            lineHeight: 1.65,
+            "@media (min-width:900px)": { fontSize: "1rem", lineHeight: 1.7 },
           },
           button: {
             textTransform: "none",
@@ -114,6 +137,10 @@ export default function App({ Component, pageProps: { session, ...pageProps } })
   return (
     <SessionProvider session={session}>
       <Head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <link rel="icon" href="/favicon.ico" />
         <title>FAP Mendoza</title>
       </Head>

@@ -46,10 +46,10 @@ export default function Nosotros() {
           >
             {/* Logo a la izquierda */}
             <Box>
-              <img src="/images/fap-logo.png" alt="FAP Logo" style={{ width: '120px' }} />
+              <Box component="img" src="/images/fap-logo.png" alt="FAP Logo" sx={{ width: { xs: 90, md: 120 }, height: "auto", display: "block" }} />
             </Box>
             {/* Flecha a la derecha para navegar a Recruitment */}
-            <IconButton onClick={handleArrowClick} sx={{ color: '#fff' }}>
+            <IconButton onClick={handleArrowClick} aria-label="Ir a Reclutamiento" sx={{ color: '#fff', p: 1 }}>
               <ArrowForwardIosIcon fontSize="large" />
             </IconButton>
           </Container>
@@ -61,8 +61,8 @@ export default function Nosotros() {
           sx={{ 
             position: 'relative', 
             zIndex: 1, 
-            mt: { xs: 2, md: 4 }, 
-            pb: { xs: 2, md: 4 } 
+            mt: { xs: 2, md: 4 },
+            pb: { xs: 10, md: 4 }
           }}
         >
           <Grid container spacing={{ xs: 2, md: 4 }} alignItems="center">
@@ -85,8 +85,8 @@ export default function Nosotros() {
             <Grid item xs={12} md={8}>
               <Typography
                 variant="body1"
-                align="justify"
                 sx={{
+                  textAlign: { xs: "left", md: "justify" },
                   mt: { xs: 1, md: 3 },
                   fontFamily: "'Open Sans', sans-serif",
                   fontSize: { xs: '1rem', md: '1.2rem' },
@@ -131,8 +131,8 @@ export default function Nosotros() {
             <Grid item xs={12} md={8}>
               <Typography
                 variant="body1"
-                align="justify"
                 sx={{
+                  textAlign: { xs: "left", md: "justify" },
                   mt: { xs: 1, md: 3 },
                   fontFamily: "'Open Sans', sans-serif",
                   fontSize: { xs: '1rem', md: '1.2rem' },
@@ -177,8 +177,8 @@ export default function Nosotros() {
             <Grid item xs={12} md={8}>
               <Typography
                 variant="body1"
-                align="justify"
                 sx={{
+                  textAlign: { xs: "left", md: "justify" },
                   mt: { xs: 1, md: 3 },
                   fontFamily: "'Open Sans', sans-serif",
                   fontSize: { xs: '1rem', md: '1.2rem' },

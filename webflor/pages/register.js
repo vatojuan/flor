@@ -88,16 +88,18 @@ export default function Register() {
         sx={{
           minHeight: "100vh",
           display: "flex",
-          alignItems: "center",
+          alignItems: { xs: "flex-start", md: "center" },
           justifyContent: "center",
           bgcolor: "background.default",
+          px: 2,
+          py: { xs: 4, md: 0 },
         }}
       >
         <Container
           maxWidth="sm"
           sx={{
             textAlign: "center",
-            p: 4,
+            p: { xs: 2.5, sm: 4 },
             boxShadow: 3,
             borderRadius: 2,
             bgcolor: "background.paper",
@@ -150,7 +152,7 @@ export default function Register() {
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
+                    <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
@@ -164,7 +166,7 @@ export default function Register() {
 
           <Typography variant="body2" sx={{ mt: 2 }}>
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" style={{ color: "#1976d2", textDecoration: "none" }}>
+            <Link href="/login" style={{ color: "#1976d2", textDecoration: "none", display: "inline-block", padding: "6px 4px" }}>
               Inicia sesión aquí
             </Link>
           </Typography>

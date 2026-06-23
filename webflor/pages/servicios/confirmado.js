@@ -2,6 +2,7 @@ import { useRouter } from "next/router";
 import { Box, Container, Typography, Button, Paper, List, ListItem, ListItemIcon, ListItemText } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import MainLayout from "../../components/MainLayout";
 
 export default function ServicioConfirmado() {
   const router = useRouter();
@@ -10,9 +11,10 @@ export default function ServicioConfirmado() {
   const isPending = pending === "1";
 
   return (
-    <Box sx={{ bgcolor: "background.default", minHeight: "100vh", py: 8 }}>
-      <Container maxWidth="sm" sx={{ textAlign: "center" }}>
-        <Paper sx={{ p: 5, borderRadius: 3 }}>
+    <MainLayout>
+      <Box sx={{ bgcolor: "background.default", minHeight: "100vh", py: { xs: 4, md: 8 }, pb: { xs: 10, md: 8 } }}>
+        <Container maxWidth="sm" sx={{ textAlign: "center" }}>
+          <Paper sx={{ p: { xs: 2.5, sm: 4, md: 5 }, borderRadius: 3 }}>
           {isPending ? (
             <HourglassEmptyIcon sx={{ fontSize: 64, color: "warning.main", mb: 2 }} />
           ) : (
@@ -52,11 +54,12 @@ export default function ServicioConfirmado() {
             </Box>
           )}
 
-          <Button variant="contained" size="large" onClick={() => router.push("/")}>
+          <Button variant="contained" size="large" onClick={() => router.push("/")} sx={{ width: { xs: "100%", sm: "auto" } }}>
             Volver al inicio
           </Button>
         </Paper>
       </Container>
-    </Box>
+      </Box>
+    </MainLayout>
   );
 }

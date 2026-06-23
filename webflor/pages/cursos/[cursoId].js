@@ -17,7 +17,7 @@ import {
   Grid,
   LinearProgress,
   List,
-  ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Paper,
@@ -178,15 +178,18 @@ export default function CursoDetallePage({ toggleDarkMode, currentMode }) {
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 1.5,
             mb: 2,
           }}
         >
-          <Typography variant="h4">{course.title}</Typography>
+          <Typography variant="h4" sx={{ wordBreak: 'break-word' }}>{course.title}</Typography>
           <Button
             variant="outlined"
             color="error"
             onClick={handleUnenroll}
+            sx={{ minHeight: 44, width: { xs: '100%', sm: 'auto' }, flexShrink: 0 }}
           >
             Abandonar curso
           </Button>
@@ -208,10 +211,10 @@ export default function CursoDetallePage({ toggleDarkMode, currentMode }) {
         </Typography>
 
         {/* Contenido */}
-        <Grid container spacing={4} sx={{ mt: 2 }}>
+        <Grid container spacing={{ xs: 2, md: 4 }} sx={{ mt: 2 }}>
           {/* Video + detalles */}
           <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 2 }}>
+            <Paper sx={{ p: { xs: 1.5, md: 2 } }}>
               {selectedLesson ? (
                 <>
                   <Typography variant="h6" gutterBottom>
@@ -261,22 +264,21 @@ export default function CursoDetallePage({ toggleDarkMode, currentMode }) {
 
           {/* Lista de lecciones */}
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 2, maxHeight: '80vh', overflowY: 'auto' }}>
+            <Paper sx={{ p: { xs: 1.5, md: 2 }, maxHeight: { xs: 'none', md: '80vh' }, overflowY: 'auto' }}>
               <Typography variant="h6" gutterBottom>
                 Lecciones
               </Typography>
 
               <List>
                 {course.lessons.map((l) => (
-                  <ListItem
+                  <ListItemButton
                     key={l.id}
-                    button
                     selected={selectedLesson?.id === l.id}
                     onClick={() => {
                       setSelectedLesson(l);
                       setMaxWatched(0);
                     }}
-                    sx={{ mb: 1, border: '1px solid #ddd', borderRadius: 1 }}
+                    sx={{ mb: 1, border: '1px solid #ddd', borderRadius: 1, minHeight: 56 }}
                   >
                     <ListItemIcon>
                       {l.isCompleted ? (
@@ -289,7 +291,7 @@ export default function CursoDetallePage({ toggleDarkMode, currentMode }) {
                       primary={l.title}
                       secondary={`Lección ${l.orderIndex + 1}`}
                     />
-                  </ListItem>
+                  </ListItemButton>
                 ))}
               </List>
             </Paper>

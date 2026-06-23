@@ -49,22 +49,29 @@ export default function Recruitment() {
       >
         <Container
           maxWidth="lg"
-          sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", md: "center" },
+            flexDirection: { xs: "column", md: "row" },
+            gap: { xs: 2, md: 0 },
+          }}
         >
           <Box>
             <Typography variant="h5">Reclutamiento y Selección</Typography>
             <Typography variant="h2" sx={{ fontWeight: 700, mt: 1, lineHeight: 1.2 }}>
-              Encontrá el talento<br />ideal para tu empresa
+              Encontrá el talento
+              <Box component="br" sx={{ display: { xs: "none", md: "block" } }} /> ideal para tu empresa
             </Typography>
           </Box>
-          <IconButton onClick={handleNext} sx={{ color: "#FFF" }}>
+          <IconButton onClick={handleNext} aria-label="Siguiente solución" sx={{ color: "#FFF", display: { xs: "none", md: "inline-flex" } }}>
             <ArrowForwardIosIcon fontSize="large" />
           </IconButton>
         </Container>
       </Box>
 
       {/* Contenido */}
-      <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
         {/* Intro + CTA */}
         <Paper
           elevation={0}
@@ -86,7 +93,7 @@ export default function Recruitment() {
         </Paper>
 
         {/* ¿Qué nos diferencia? */}
-        <Box sx={{ mb: 10 }}>
+        <Box sx={{ mb: { xs: 6, md: 10 } }}>
           <Typography variant="h4" gutterBottom>
             ¿Qué nos diferencia?
           </Typography>
@@ -106,7 +113,7 @@ export default function Recruitment() {
         </Box>
 
         {/* ¿Por qué elegirnos? */}
-        <Box sx={{ mb: 12 }}>
+        <Box sx={{ mb: { xs: 6, md: 12 } }}>
           <Typography variant="h4" gutterBottom>
             ¿Por qué elegirnos?
           </Typography>
@@ -140,14 +147,15 @@ export default function Recruitment() {
           sx={{
             textAlign: "center",
             backgroundColor: "#155158",
-            py: 6,
+            py: { xs: 4, md: 6 },
+            px: { xs: 2, md: 4 },
             borderRadius: 2,
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, color: "#FFF" }}>
             ¿Querés sumar talento a tu equipo?
           </Typography>
-          <Button variant="contained" size="large" onClick={handleContact}>
+          <Button variant="contained" size="large" onClick={handleContact} sx={{ width: { xs: "100%", sm: "auto" } }}>
             Hablemos
           </Button>
         </Box>

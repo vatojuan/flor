@@ -104,8 +104,8 @@ export default function UploadCVPage() {
         </Box>
 
         {/* Upload Form */}
-        <Container maxWidth="sm" sx={{ py: 8 }}>
-          <Paper elevation={3} sx={{ p: 4, borderTop: "6px solid #D96236" }}>
+        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 }, pb: { xs: 12, md: 8 } }}>
+          <Paper elevation={3} sx={{ p: { xs: 2.5, md: 4 }, borderTop: "6px solid #D96236" }}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <TextField
                 label="Correo electrónico (opcional)"
@@ -113,6 +113,7 @@ export default function UploadCVPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 helperText="Si lo deseás, asociamos tu CV a este email."
+                autoComplete="email"
                 fullWidth
               />
 
@@ -125,6 +126,10 @@ export default function UploadCVPage() {
                 sx={{
                   bgcolor: "#D96236",
                   "&:hover": { bgcolor: "#c0552f" },
+                  whiteSpace: "normal",
+                  textAlign: "center",
+                  minHeight: 48,
+                  lineHeight: 1.3,
                 }}
               >
                 {uploading ? "Subiendo..." : "Seleccionar CV (PDF o DOCX)"}

@@ -56,15 +56,15 @@ export default function BusquedaServicio() {
     <MainLayout>
       <Box sx={{ bgcolor: "background.default", minHeight: "100vh" }}>
         {/* Hero */}
-        <Box sx={{ background: "linear-gradient(135deg, #103B40 0%, #1a5c63 100%)", color: "#fff", py: 8, textAlign: "center" }}>
-          <Container maxWidth="md">
+        <Box sx={{ background: "linear-gradient(135deg, #103B40 0%, #1a5c63 100%)", color: "#fff", py: { xs: 5, md: 8 }, px: 2, textAlign: "center" }}>
+          <Container maxWidth="md" disableGutters>
             <Typography variant="h3" fontWeight={700} gutterBottom>
               Encontramos el personal que necesitas
             </Typography>
-            <Typography variant="h6" sx={{ opacity: 0.9, mb: 2 }}>
+            <Typography variant="h6" sx={{ opacity: 0.9, mb: 3 }}>
               Decinos que puesto buscas y en 24-48hs te enviamos candidatos verificados
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 1, sm: 2 }, justifyContent: "center" }}>
               <Chip label="Busqueda: $50.000" sx={{ bgcolor: "rgba(255,255,255,0.2)", color: "#fff", fontWeight: 600, fontSize: 14, py: 2, px: 1 }} />
               <Chip icon={<StarIcon sx={{ color: "#FFB300 !important" }} />} label="Seleccion completa: $120.000"
                 sx={{ bgcolor: "#D96236", color: "#fff", fontWeight: 600, fontSize: 14, py: 2, px: 1 }} />
@@ -72,7 +72,7 @@ export default function BusquedaServicio() {
           </Container>
         </Box>
 
-        <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 }, pb: { xs: 11, md: 6 } }}>
           <Grid container spacing={4}>
             {/* Left: Plans comparison */}
             <Grid item xs={12} md={5}>
@@ -80,7 +80,7 @@ export default function BusquedaServicio() {
                 Dos niveles de servicio
               </Typography>
 
-              <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}>
+              <Paper elevation={1} sx={{ p: { xs: 2, md: 3 }, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   <SearchIcon sx={{ mr: 1, verticalAlign: "middle", color: "primary.main" }} />
                   Busqueda — $50.000
@@ -101,7 +101,7 @@ export default function BusquedaServicio() {
                 </List>
               </Paper>
 
-              <Paper elevation={1} sx={{ p: 3, borderRadius: 2, border: "2px solid #D96236", bgcolor: "background.paper" }}>
+              <Paper elevation={1} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, border: "2px solid #D96236", bgcolor: "background.paper" }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   <StarIcon sx={{ mr: 1, verticalAlign: "middle", color: "#FFB300" }} />
                   Seleccion completa — $120.000
@@ -128,7 +128,7 @@ export default function BusquedaServicio() {
 
             {/* Right: Form */}
             <Grid item xs={12} md={7}>
-              <Paper elevation={1} sx={{ p: 4, borderRadius: 3, bgcolor: "background.paper" }}>
+              <Paper elevation={1} sx={{ p: { xs: 2.5, md: 4 }, borderRadius: 3, bgcolor: "background.paper" }}>
                 <Typography variant="h5" fontWeight={600} gutterBottom>
                   Solicitar servicio
                 </Typography>
@@ -137,7 +137,8 @@ export default function BusquedaServicio() {
                   {/* Plan selection */}
                   <Typography variant="subtitle2" color="text.secondary">Tipo de servicio</Typography>
                   <RadioGroup value={form.service_type} onChange={update("service_type")}>
-                    <Card variant="outlined" sx={{ mb: 1, borderColor: form.service_type === "busqueda" ? "primary.main" : "divider" }}>
+                    <Card variant="outlined" onClick={() => setForm((f) => ({ ...f, service_type: "busqueda" }))}
+                      sx={{ mb: 1, cursor: "pointer", borderColor: form.service_type === "busqueda" ? "primary.main" : "divider" }}>
                       <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, py: 1, "&:last-child": { pb: 1 } }}>
                         <FormControlLabel value="busqueda" control={<Radio />} label="" sx={{ m: 0 }} />
                         <SearchIcon color="action" />
@@ -148,7 +149,8 @@ export default function BusquedaServicio() {
                         <Chip label="$50.000" size="small" />
                       </CardContent>
                     </Card>
-                    <Card variant="outlined" sx={{ borderColor: form.service_type === "seleccion" ? "primary.main" : "divider", borderWidth: form.service_type === "seleccion" ? 2 : 1 }}>
+                    <Card variant="outlined" onClick={() => setForm((f) => ({ ...f, service_type: "seleccion" }))}
+                      sx={{ cursor: "pointer", borderColor: form.service_type === "seleccion" ? "primary.main" : "divider", borderWidth: form.service_type === "seleccion" ? 2 : 1 }}>
                       <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, py: 1, "&:last-child": { pb: 1 } }}>
                         <FormControlLabel value="seleccion" control={<Radio />} label="" sx={{ m: 0 }} />
                         <VideocamIcon sx={{ color: "#FFB300" }} />
@@ -185,10 +187,10 @@ export default function BusquedaServicio() {
                     value={form.position} onChange={update("position")} />
 
                   <Grid container spacing={2}>
-                    <Grid item xs={6}>
+                    <Grid item xs={12} sm={6}>
                       <TextField fullWidth type="number" label="Cantidad de personas" value={form.quantity} onChange={update("quantity")} inputProps={{ min: 1 }} />
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid item xs={12} sm={6}>
                       <FormControl fullWidth>
                         <InputLabel>Urgencia</InputLabel>
                         <Select value={form.urgency} label="Urgencia" onChange={update("urgency")}>
@@ -211,7 +213,7 @@ export default function BusquedaServicio() {
 
                   <Button type="submit" variant="contained" size="large" disabled={submitting}
                     startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SearchIcon />}
-                    sx={{ py: 1.5, fontSize: 16 }}>
+                    sx={{ py: 1.5, fontSize: { xs: 14, sm: 16 }, lineHeight: 1.3 }}>
                     {submitting ? "Procesando..." : `Solicitar ${form.service_type === "seleccion" ? "seleccion completa" : "busqueda"} — $${price.toLocaleString()}`}
                   </Button>
 

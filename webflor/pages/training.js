@@ -54,7 +54,17 @@ function CourseCard({ course, onEnroll }) {
           {course.title}
         </Typography>
 
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            overflowWrap: 'anywhere',
+          }}
+        >
           {course.description}
         </Typography>
 
@@ -74,7 +84,7 @@ function CourseCard({ course, onEnroll }) {
 
       <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
         {course.isEnrolled ? (
-          <Button size="small" variant="contained" onClick={goToCourse}>
+          <Button size="small" variant="contained" onClick={goToCourse} sx={{ minHeight: 40 }}>
             Ver Curso
           </Button>
         ) : (
@@ -82,6 +92,7 @@ function CourseCard({ course, onEnroll }) {
             size="small"
             variant="outlined"
             onClick={() => onEnroll(course.id)}
+            sx={{ minHeight: 40 }}
           >
             Inscribirme
           </Button>
@@ -185,7 +196,7 @@ export default function TrainingPage({ toggleDarkMode, currentMode }) {
       toggleDarkMode={toggleDarkMode}
       currentMode={currentMode}
     >
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
+      <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: { xs: 4, md: 6 } }}>
         <Typography variant="h4" gutterBottom>
           Formación y Capacitación
         </Typography>
@@ -195,7 +206,7 @@ export default function TrainingPage({ toggleDarkMode, currentMode }) {
         </Typography>
 
         {courses.length ? (
-          <Grid container spacing={4}>
+          <Grid container spacing={{ xs: 2, md: 4 }}>
             {courses.map((course) => (
               <Grid key={course.id} item xs={12} sm={6} md={4}>
                 <CourseCard course={course} onEnroll={handleEnroll} />
@@ -203,7 +214,7 @@ export default function TrainingPage({ toggleDarkMode, currentMode }) {
             ))}
           </Grid>
         ) : (
-          <Paper sx={{ p: 4, textAlign: 'center', mt: 6 }}>
+          <Paper sx={{ p: { xs: 2.5, md: 4 }, textAlign: 'center', mt: { xs: 4, md: 6 } }}>
             <Typography variant="h6">No hay cursos disponibles</Typography>
             <Typography color="text.secondary">
               Vuelve a consultar más tarde.
